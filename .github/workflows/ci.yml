@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: build + test (${{ matrix.os }}, cp${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install the toolchain (Linux)
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+        if: runner.os == 'Linux'
+
+      - name: Install the toolchain (macOS)
+        run: brew install ninja
+        if: runner.os == 'macOS'
+
+      - name: Install the toolchain (Windows)
+        run: choco install ninja -y
+        if: runner.os == 'Windows'
+
+      - name: Sync the environment
+        run: uv sync --all-groups --python ${{ matrix.python }}
+
+      - name: Run the test suite
+        run: uv run --python ${{ matrix.python }} pytest -q
+
+      - name: Run the upstream KMCLib unit tests
+        run: uv run --python ${{ matrix.python }} python scripts/run_upstream_tests.py --units
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Install the built wheel in a clean environment
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          uv venv "$RUNNER_TEMP/verify" --python ${{ matrix.python }}
+          uv pip install --python "$RUNNER_TEMP/verify/bin/python" dist/*.whl
+          "$RUNNER_TEMP/verify/bin/python" -c "import pykmclib; print(pykmclib.__version__)"
+
+      - name: Install the built wheel in a clean environment (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $venv = Join-Path $env:RUNNER_TEMP "verify"
+          uv venv $venv --python ${{ matrix.python }}
+          $python = Join-Path $venv "Scripts/python.exe"
+          $wheel = (Get-ChildItem dist/*.whl | Select-Object -First 1).FullName
+          uv pip install --python $python $wheel
+          & $python -c "import pykmclib; print(pykmclib.__version__)"
+
+  upstream:
+    name: vendored snapshot + upstream functional tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install the toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - run: uv sync --all-groups
+
+      # Nobody is supposed to edit third_party/KMCLib: it is a git subtree.
+      - name: The vendored snapshot must be untouched
+        run: |
+          if [ -n "$(git status --porcelain third_party/KMCLib)" ]; then
+            echo "third_party/KMCLib has local modifications - see docs/upstream-notes.md"
+            git status --porcelain third_party/KMCLib
+            exit 1
+          fi
+
+      - name: Which upstream commit is vendored
+        run: uv run python scripts/upstream_info.py
+
+      # The Python front end is generated from the vendored sources.
+      - name: The generated Python layer must match the snapshot
+        run: uv run python scripts/gen_python_layer.py --check
+
+      # End-to-end runs (diffusion, buckets, Ising, on-the-fly rates). Slow.
+      - name: Upstream functional tests
+        run: uv run python scripts/run_upstream_tests.py --functests
