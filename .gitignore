@@ -218,3 +218,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# pykmclib: build, packaging and simulation artefacts
+build/
+dist/
+.uv-cache/
+.venv/
+*.so
+*.pyd
+*.xyz
+msd.data
+scratch/

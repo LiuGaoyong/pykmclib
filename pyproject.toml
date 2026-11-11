@@ -1,0 +1,141 @@
+[build-system]
+requires = ["scikit-build-core>=1.1", "pybind11>=3.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pykmclib"
+description = "Python re-development of KMCLib: lattice kinetic Monte Carlo simulations with a C++ backend"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "LiuGaoyong", email = "liugaoyong_88@163.com" }]
+keywords = [
+  "kinetic Monte Carlo",
+  "kMC",
+  "lattice",
+  "simulation",
+  "materials science",
+  "KMCLib",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: C++",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Scientific/Engineering :: Chemistry",
+  "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = ["numpy>=1.21"]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/LiuGaoyong/pykmclib"
+"Upstream KMCLib" = "https://github.com/leetmaa/KMCLib"
+"Bug Tracker" = "https://github.com/LiuGaoyong/pykmclib/issues"
+
+[project.optional-dependencies]
+test = ["pytest>=8", "pytest-cov"]
+docs = ["sphinx>=7", "sphinx-rtd-theme"]
+
+[dependency-groups]
+dev = [
+  "cibuildwheel>=2.20",
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+]
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+cmake.version = ">=3.21"
+cmake.build-type = "Release"
+# Only the Python package goes into the wheel; the vendored C++ tree never does.
+wheel.packages = ["src/pykmclib"]
+# "default" inclusion mode ships everything git tracks; the exclusions below trim
+# the parts of the upstream snapshot that the build does not need.
+sdist.inclusion-mode = "default"
+sdist.exclude = [
+  "/third_party/KMCLib/manual/**",
+  "/third_party/KMCLib/python/**",
+  "/third_party/KMCLib/c++/unittest/**",
+  "/third_party/KMCLib/c++/externals/zip/cppunit-*.tar.gz",
+  "/third_party/KMCLib/c++/externals/include/**",
+  "/third_party/KMCLib/c++/externals/lib/**",
+  "/third_party/KMCLib/c++/externals/obj/**",
+  "/third_party/KMCLib/c++/externals/src/**",
+  "/build/**",
+  "/dist/**",
+  "/.venv/**",
+  "/.uv-cache/**",
+  "**/__pycache__/**",
+  "**/*.pyc",
+]
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "src/pykmclib/__init__.py"
+regex = '__version__ = "(?P<value>[^"]+)"'
+
+[tool.uv]
+# Rebuild the editable install when C++ sources or build glue change.
+cache-keys = [
+  { file = "pyproject.toml" },
+  { file = "CMakeLists.txt" },
+  { file = "cxx/**/*.{cmake,txt,in,cpp,h}" },
+  { file = "third_party/KMCLib/c++/src/**/*.{c,h,cpp,hpp}" },
+  { file = "third_party/KMCLib/c++/custom/**/*.{c,h,cpp,hpp}" },
+  { file = "src/**/*.py" },
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = ["error::DeprecationWarning:pykmclib.*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = [
+  "third_party",
+  # The Python front end is derived from upstream KMCLib and kept as-is apart
+  # from the pykmclib rename, so its 2012-era style is not gated by the linter.
+  "src/pykmclib/Analysis",
+  "src/pykmclib/CoreComponents",
+  "src/pykmclib/Exceptions",
+  "src/pykmclib/PluginInterfaces",
+  "src/pykmclib/Utilities",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+  "E501",
+  "E731",
+  "E741",
+  "B008",
+]
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+skip = "*-musllinux_i686"
+test-command = "pytest {project}/tests -q"
+test-extras = ["test"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]
