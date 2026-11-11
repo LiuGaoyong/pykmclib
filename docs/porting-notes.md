@@ -87,9 +87,11 @@ pybind11 绑定天然满足。
 上游测试在 vendored 子树里（`python/unittest`、`python/functest`），由
 `scripts/run_upstream_tests.py` 以 `KMCLib → pykmclib` 别名方式离线运行。当前：
 
-- 单元测试：188 passed，2 个 known failure（脚本内 `XFAIL`，`--strict` 可强制失败）
+- 单元测试：188 passed，3 个 known failure（脚本内 `XFAIL`，`--strict` 可强制失败）
   - `CheckUtilitiesTest.testCheckCellVectors` —— numpy ≥ 1.24 拒绝 ragged 数组（测试本身写法过时）
   - `KMCLatticeModelTest.testRunRngTypeDevice` —— 本机 `std::random_device` 有真实熵，DEVICE 被接受
+  - `TrajectoryTest.testAppendAndFlushTime` —— 断言两次 append 的 wall-clock 间隔小于 0.1 s，
+    机器负载高时偶发失败（与绑定层无关）
 - 功能测试：8 个端到端用例（1D/3D 扩散、buckets、Ising、on-the-fly 速率、时间步长分布）全通过。
 
 ## 5. 修改指引

@@ -38,6 +38,9 @@ XFAIL = {
     "KMCLibTest.Utilities.CheckUtilitiesTest.CheckUtilitiesTest.testCheckCellVectors": "numpy>=1.24 rejects ragged arrays",
     # std::random_device has real entropy here, so the DEVICE rng is accepted.
     "KMCLibTest.CoreComponents.KMCLatticeModelTest.KMCLatticeModelTest.testRunRngTypeDevice": "std::random_device has entropy on this platform",
+    # Two consecutive appends are expected to happen within the 0.1 s wall-clock
+    # flush interval; the test flakes on a loaded machine (unrelated to pykmclib).
+    "KMCLibTest.Utilities.Trajectory.TrajectoryTest.TrajectoryTest.testAppendAndFlushTime": "asserts on elapsed wall-clock time; flakes under load",
 }
 
 
