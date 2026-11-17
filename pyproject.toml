@@ -50,7 +50,8 @@ docs = ["sphinx>=7", "sphinx-rtd-theme"]
 
 [dependency-groups]
 dev = [
-  "cibuildwheel>=2.20",
+  # Keep in step with CIBUILDWHEEL_VERSION in .github/workflows/wheels.yml.
+  "cibuildwheel>=4.3; python_version >= '3.11'",
   "pytest>=8",
   "pytest-cov>=5",
   "ruff>=0.6",
@@ -130,12 +131,13 @@ ignore = [
 
 [tool.cibuildwheel]
 build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
-skip = "*-musllinux_i686"
+# Only manylinux wheels are published.  The architectures and the manylinux
+# image are chosen per job in .github/workflows/wheels.yml.
+skip = "*-musllinux_*"
 test-command = "pytest {project}/tests -q"
 test-extras = ["test"]
 
-[tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
-
-[tool.cibuildwheel.windows]
-archs = ["AMD64"]
+[tool.cibuildwheel.linux]
+# Never compile numpy from source inside the build image: when the newest
+# numpy has no wheel for the image (manylinux2014), fall back to an older one.
+environment = { PIP_ONLY_BINARY = "numpy" }

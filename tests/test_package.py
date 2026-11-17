@@ -13,10 +13,12 @@ def test_version_is_pep440():
     assert re.fullmatch(r"\d+\.\d+\.\d+([abc]\d+|\.dev\d+|\.post\d+)?", pykmclib.__version__)
 
 
-def test_version_is_released_as_pykmclib():
+def test_version_matches_the_installed_metadata():
+    from importlib.metadata import version
+
     import pykmclib
 
-    assert pykmclib.__version__ == "0.0.1"
+    assert pykmclib.__version__ == version("pykmclib")
 
 
 def test_backend_extension_is_importable():

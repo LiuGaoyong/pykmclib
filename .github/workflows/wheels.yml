@@ -11,14 +11,36 @@ on:
       - "third_party/KMCLib/**"
   workflow_dispatch:
 
+env:
+  CIBUILDWHEEL_VERSION: "4.3.5"
+
 jobs:
   build_wheels:
-    name: wheels on ${{ matrix.os }}
+    name: wheels (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+        include:
+          # Linux: both manylinux flavours for both architectures.  The arm64
+          # builds run on native runners, not under QEMU.
+          - { name: linux-x86_64-manylinux2014, os: ubuntu-latest, arch: x86_64, manylinux: manylinux2014 }
+          - { name: linux-x86_64-manylinux_2_28, os: ubuntu-latest, arch: x86_64, manylinux: manylinux_2_28 }
+          - { name: linux-aarch64-manylinux2014, os: ubuntu-24.04-arm, arch: aarch64, manylinux: manylinux2014 }
+          - { name: linux-aarch64-manylinux_2_28, os: ubuntu-24.04-arm, arch: aarch64, manylinux: manylinux_2_28 }
+          # macOS: one native runner per architecture.  The deployment target
+          # is pinned so that the C++17 standard library is fully available.
+          - { name: macos-x86_64, os: macos-15-intel, arch: x86_64, macos_target: "10.15" }
+          - { name: macos-arm64, os: macos-15, arch: arm64, macos_target: "11.0" }
+          - { name: windows-x86_64, os: windows-latest, arch: AMD64 }
+    env:
+      CIBW_ARCHS: ${{ matrix.arch }}
+      CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux || 'manylinux_2_28' }}
+      CIBW_MANYLINUX_AARCH64_IMAGE: ${{ matrix.manylinux || 'manylinux_2_28' }}
+      # numpy publishes no manylinux2014 wheel for CPython 3.14, so that wheel
+      # is built but cannot be tested inside the manylinux2014 image.
+      CIBW_TEST_SKIP: ${{ matrix.manylinux == 'manylinux2014' && 'cp314-*' || '' }}
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.macos_target }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -26,11 +48,11 @@ jobs:
           enable-cache: true
 
       - name: Build the wheels
-        run: uvx cibuildwheel --output-dir wheelhouse
+        run: uvx cibuildwheel==${{ env.CIBUILDWHEEL_VERSION }} --output-dir wheelhouse
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.name }}
           path: wheelhouse/*.whl
 
   build_sdist:
@@ -52,8 +74,19 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
+      contents: read
       id-token: write  # trusted publishing, no API token needed
     steps:
+      - uses: actions/checkout@v4
+
+      - name: The tag must match __version__
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/pykmclib/__init__.py)
+          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match __version__ = \"${version}\""
+            exit 1
+          fi
+
       - uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
