@@ -15,6 +15,9 @@ reviewable diff.  Three files are maintained by hand and are never touched:
     Backend/Backend.py
     Backend/Custom.py
 
+Any other ``.py`` file in ``src/pykmclib`` that has no upstream counterpart
+(for example a module upstream deleted) is reported, and fails ``--check``.
+
 Usage
 -----
     python scripts/gen_python_layer.py           # refresh src/pykmclib
@@ -53,6 +56,12 @@ def iter_upstream_files() -> list[Path]:
     return sorted(p.relative_to(UPSTREAM_DIR) for p in UPSTREAM_DIR.rglob("*.py"))
 
 
+def iter_extra_files(upstream: list[Path]) -> list[Path]:
+    """Python files in the package that neither come from upstream nor are ours."""
+    known = set(upstream) | OURS
+    return sorted(p.relative_to(DEST_DIR) for p in DEST_DIR.rglob("*.py") if p.relative_to(DEST_DIR) not in known)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--check", action="store_true", help="report drift instead of writing")
@@ -63,9 +72,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {UPSTREAM_DIR} is missing (run 'git subtree pull' first)", file=sys.stderr)
         return 2
 
+    upstream = iter_upstream_files()
+    extra = iter_extra_files(upstream)
+
     stale: list[Path] = []
     written: list[Path] = []
-    for relative in iter_upstream_files():
+    for relative in upstream:
         if relative in OURS and not args.force:
             continue
         source = UPSTREAM_DIR / relative
@@ -85,12 +97,19 @@ def main(argv: list[str] | None = None) -> int:
             print("stale files (run scripts/gen_python_layer.py):")
             for relative in stale:
                 print(f"  {relative}")
+        if extra:
+            print("files without an upstream counterpart (delete them, or list them in OURS):")
+            for relative in extra:
+                print(f"  {relative}")
+        if stale or extra:
             return 1
         print("python layer is up to date")
         return 0
 
     for relative in written:
         print(f"wrote {relative}")
+    for relative in extra:
+        print(f"warning: {relative} has no upstream counterpart and is not listed in OURS", file=sys.stderr)
     print(f"{len(written)} file(s) regenerated from {UPSTREAM_DIR.relative_to(REPO_ROOT)}")
     return 0
 
