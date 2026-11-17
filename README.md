@@ -1,11 +1,16 @@
 # pykmclib
 
+[![Conda Version](https://img.shields.io/conda/vn/conda-forge/pykmclib.svg)](https://anaconda.org/conda-forge/pykmclib)
+[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/pykmclib.svg)](https://anaconda.org/conda-forge/pykmclib)
+[![PyPI version](https://img.shields.io/pypi/v/pykmclib)](https://pypi.org/project/pykmclib/)
+[![PyPI Downloads](https://static.pepy.tech/badge/pykmclib)](https://pepy.tech/projects/pykmclib)
+
 **pykmclib** is a Python re-release and further development of
 [KMCLib](https://github.com/leetmaa/KMCLib), a framework for lattice kinetic Monte Carlo (lattice kMC)
 simulations. The C++ backend is KMCLib's original implementation, bound with **pybind11** and built
 with **scikit-build-core + CMake**, so it can be installed directly from PyPI / conda-forge.
 
-> Status: `0.0.1` (alpha). The Python layer keeps the same API as upstream KMCLib. Of upstream's
+> Status: `0.0.2` (alpha). The Python layer keeps the same API as upstream KMCLib. Of upstream's
 > own 190 unit tests, 187 pass and 3 are known failures that depend on the platform, the numpy
 > version or the machine load (see [docs/porting-notes.md](docs/porting-notes.md)); the 8
 > end-to-end functional tests pass.

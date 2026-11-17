@@ -25,7 +25,7 @@ Leetmaa, GPL-3.0-or-later) and is distributed under the same terms.
 
 import atexit
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 from .Analysis.Composition import Composition
 from .Analysis.OnTheFlyMSD import OnTheFlyMSD
