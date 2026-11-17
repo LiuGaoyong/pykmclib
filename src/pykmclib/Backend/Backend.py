@@ -19,10 +19,10 @@ from __future__ import annotations
 import copy
 import numbers
 
-from ._backend import *  # noqa: F401,F403  (re-export the compiled classes)
-from ._backend import Configuration as _ExtConfiguration
-from ._backend import Interactions as _ExtInteractions
-from ._backend import OnTheFlyMSD as _ExtOnTheFlyMSD
+from ._backend import *  # noqa: F401,F403  (re-export the compiled classes) # type: ignore
+from ._backend import Configuration as _ExtConfiguration  # type: ignore
+from ._backend import Interactions as _ExtInteractions  # type: ignore
+from ._backend import OnTheFlyMSD as _ExtOnTheFlyMSD  # type: ignore
 
 
 def _normalise(value):

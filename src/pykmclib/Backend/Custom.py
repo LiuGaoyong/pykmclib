@@ -6,6 +6,6 @@ by name, so the calculators are re-exported from the compiled extension.
 
 from __future__ import annotations
 
-from ._backend import BucketsTestCalculator, IsingTestCalculator
+from ._backend import BucketsTestCalculator, IsingTestCalculator  # type: ignore
 
 __all__ = ["BucketsTestCalculator", "IsingTestCalculator"]
