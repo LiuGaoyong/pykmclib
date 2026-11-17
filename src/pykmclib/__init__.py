@@ -27,13 +27,6 @@ import atexit
 
 __version__ = "0.0.1"
 
-# Check for ATK-Python support.
-__atkpython__ = True
-try:
-    from NanoLanguage import *  # noqa: F401,F403
-except Exception:
-    __atkpython__ = False
-
 from .Analysis.Composition import Composition
 from .Analysis.OnTheFlyMSD import OnTheFlyMSD
 from .Analysis.ProcessStatistics import ProcessStatistics
