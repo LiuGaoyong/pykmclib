@@ -17,6 +17,8 @@ if(NOT DEFINED SKBUILD_PROJECT_NAME)
 endif()
 
 option(KMC_ENABLE_MPI "Compile the KMCLib core with MPI support (experimental)" OFF)
+option(KMC_PORTABLE_LINUX_WHEEL
+  "Avoid libstdc++ symbols that the manylinux_2_28 policy rejects (used for the published Linux wheels)" OFF)
 set(KMC_CXX_STANDARD "17" CACHE STRING "C++ standard used to compile the KMCLib core")
 
 add_subdirectory(cxx)

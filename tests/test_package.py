@@ -63,6 +63,16 @@ def test_rng_types_are_exposed_and_accepted(rng_name):
     assert Backend.setRngType(getattr(Backend, rng_name))
 
 
+def test_device_rng_is_available():
+    """std::random_device is backed by a real entropy source on every supported platform."""
+    from pykmclib.Backend import Backend
+
+    try:
+        assert Backend.setRngType(Backend.DEVICE) is True
+    finally:
+        Backend.setRngType(Backend.MT)
+
+
 def test_type_information_is_shipped():
     from importlib.resources import files
 

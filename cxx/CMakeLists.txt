@@ -145,6 +145,17 @@ if(MSVC)
   target_compile_options(_backend PRIVATE /utf-8)
 endif()
 
+# Published Linux wheels: std::random_device::entropy() needs a libstdc++
+# symbol (GLIBCXX_3.4.25) that the manylinux_2_28 policy does not allow, so
+# redirect that single reference to compat/random_device_entropy.cpp.
+if(KMC_PORTABLE_LINUX_WHEEL)
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "KMC_PORTABLE_LINUX_WHEEL is only meaningful on Linux")
+  endif()
+  target_sources(_backend PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/compat/random_device_entropy.cpp")
+  target_link_options(_backend PRIVATE "LINKER:--wrap=_ZNKSt13random_device13_M_getentropyEv")
+endif()
+
 # ---------------------------------------------------------------------------
 # Install into the wheel
 # ---------------------------------------------------------------------------
@@ -156,3 +167,4 @@ install(TARGETS _backend
 message(STATUS "pykmclib: KMCLib core from ${KMC_ROOT}")
 message(STATUS "pykmclib: pybind11 from ${pybind11_INCLUDE_DIRS}")
 message(STATUS "pykmclib: MPI ${KMC_ENABLE_MPI}")
+message(STATUS "pykmclib: portable Linux wheel ${KMC_PORTABLE_LINUX_WHEEL}")

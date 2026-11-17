@@ -88,6 +88,23 @@ Compile options: `/W3 /EHsc /bigobj /utf-8` + `NOMINMAX`, `_USE_MATH_DEFINES`,
 `_CRT_SECURE_NO_WARNINGS`. The rule that `md5.c` is compiled as C++ must also be kept under MSVC
 (otherwise the `MD5_*` symbols get C linkage names and cannot be found at import time).
 
+### Linux wheels: `std::random_device::entropy()`
+
+Upstream `random.cpp` calls `std::random_device::entropy()` to decide whether the `DEVICE`
+generator is usable. With libstdc++ this is the out-of-line function
+`std::random_device::_M_getentropy()`, exported as `GLIBCXX_3.4.25`, while the `manylinux_2_28`
+policy only allows symbols up to `GLIBCXX_3.4.24`; `auditwheel repair` then refuses to tag the
+wheel (on x86_64 and aarch64 alike). manylinux2014 is not affected, because its toolchain links
+that function statically.
+
+Since `third_party/` must not be edited, the published wheels are built with
+`-DKMC_PORTABLE_LINUX_WHEEL=ON` (set for cibuildwheel in `pyproject.toml`). The option links
+`_backend` with `--wrap=_ZNKSt13random_device13_M_getentropyEv`, which redirects that one
+reference to `cxx/compat/random_device_entropy.cpp`. The replacement returns 32 bits, the value
+libstdc++ reports for a kernel or hardware entropy source, so `DEVICE` is available in every Linux
+wheel. The option is off by default: a source build (including conda) keeps the libstdc++
+implementation.
+
 ## 4. Known failures in the upstream tests
 
 The upstream tests live in the vendored subtree (`python/unittest`, `python/functest`) and are run
