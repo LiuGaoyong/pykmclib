@@ -11,14 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      # Only the linter is needed here, so the C++ extension is not built.
+      - run: uv sync --only-group dev --no-install-project
+      - run: uv run --no-sync ruff check .
+      - run: uv run --no-sync ruff format --check .
+
   test:
     name: build + test (${{ matrix.os }}, cp${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-14, windows-latest]
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
