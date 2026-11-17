@@ -1,13 +1,14 @@
 # conda-forge
 
-`meta.yaml` 是给 [conda-forge/staged-recipes](https://github.com/conda-forge/staged-recipes)
-的 **PR 草稿**。这个目录不参与 Python 构建，只是让 recipe 和代码放在一起。
+`meta.yaml` is a **draft PR** for
+[conda-forge/staged-recipes](https://github.com/conda-forge/staged-recipes).
+This directory takes no part in the Python build; it only keeps the recipe next to the code.
 
-## 步骤
+## Steps
 
-1. 先发布到 PyPI（`git tag v0.0.1 && git push --tags` 会跑 `.github/workflows/wheels.yml`）。
-   conda-forge 从 PyPI 的 **sdist** 构建，所以 sdist 必须先存在。
-2. 算出 sdist 的校验和填进 `meta.yaml`：
+1. Publish to PyPI first (`git tag v0.0.1 && git push --tags` runs `.github/workflows/wheels.yml`).
+   conda-forge builds from the PyPI **sdist**, so the sdist has to exist first.
+2. Compute the sdist checksum and fill it into `meta.yaml`:
 
    ```bash
    curl -sL https://pypi.org/pypi/pykmclib/json | python -c "
@@ -16,19 +17,21 @@
    print([f['digests']['sha256'] for f in d['urls'] if f['packagetype'] == 'sdist'][0])"
    ```
 
-3. fork `conda-forge/staged-recipes`，把本目录拷到 `recipes/pykmclib/`，提 PR。
-   bot 会 lint recipe，并在 Linux/macOS/Windows 上构建；合并后会自动创建 feedstock。
-4. 之后发新版本只需要改版本号（feedstock 注册了 autotick bot，会自动从 PyPI 提 PR）。
+3. Fork `conda-forge/staged-recipes`, copy this directory to `recipes/pykmclib/`, and open a PR.
+   The bot lints the recipe and builds it on Linux/macOS/Windows; once merged, the feedstock is
+   created automatically.
+4. After that, releasing a new version only requires bumping the version number (the feedstock is
+   registered with the autotick bot, which opens PRs from PyPI automatically).
 
-## 说明
+## Notes
 
-- `pybind11` 与 `scikit-build-core` 是 **host** 依赖（构建期需要，运行时不需要）；
-  `pip install --no-build-isolation` 依赖它们在 host 环境里存在。
-- `cmake >=3.21` 与 `ninja` 放 **build** 段；构建脚本用 `python -m pybind11 --cmakedir`
-  定位 pybind11 的 CMake 包，因此不需要额外的环境变量。
-- sdist 自带 `third_party/KMCLib/c++/{src,custom}` 与
-  `third_party/KMCLib/c++/externals/zip/md5.tar.gz`，构建期由 CMake 解出 md5，
-  所以沙箱里不联网也能构建。
-- `tests` 目录随 sdist 一起发布，因此 `test.source_files` 可以直接引用它。
-- `LICENSE` 是 GPL-3.0-or-later，`third_party/KMCLib/LICENSE.txt` 是上游那份；
-  两个都必须出现在 `license_file` 里。
+- `pybind11` and `scikit-build-core` are **host** dependencies (needed at build time, not at
+  runtime); `pip install --no-build-isolation` relies on them being present in the host environment.
+- `cmake >=3.21` and `ninja` go in the **build** section; the build script locates pybind11's CMake
+  package with `python -m pybind11 --cmakedir`, so no extra environment variables are needed.
+- The sdist ships `third_party/KMCLib/c++/{src,custom}` and
+  `third_party/KMCLib/c++/externals/zip/md5.tar.gz`; CMake extracts md5 at build time, so the build
+  works in a sandbox without network access.
+- The `tests` directory is shipped with the sdist, so `test.source_files` can reference it directly.
+- `LICENSE` is GPL-3.0-or-later and `third_party/KMCLib/LICENSE.txt` is the upstream copy; both must
+  appear in `license_file`.

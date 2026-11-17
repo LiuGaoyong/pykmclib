@@ -1,99 +1,103 @@
-# 构建与发布
+# Build and release
 
-本文描述 pykmclib 的构建链路、本地开发流程，以及发布到 PyPI / conda-forge 的步骤。
-"上游源码怎么引入"见 [upstream-notes.md](upstream-notes.md)，"绑定层怎么移植"见
-[porting-notes.md](porting-notes.md)。
+This document describes pykmclib's build pipeline, the local development workflow, and the steps
+for releasing to PyPI / conda-forge. For how the upstream sources are brought in, see
+[upstream-notes.md](upstream-notes.md); for how the binding layer was ported, see
+[porting-notes.md](porting-notes.md).
 
 ---
 
-## 1. 构建链路一图流
+## 1. The build pipeline at a glance
 
 ```
-pyproject.toml            PEP 517: scikit-build-core + pybind11（构建期依赖）
+pyproject.toml            PEP 517: scikit-build-core + pybind11 (build-time dependencies)
       │
       ▼
 CMakeLists.txt            add_subdirectory(cxx)
       │
       ├── cxx/CMakeLists.txt
-      │     ├─ gen/mpiflag.h           由 cxx/mpiflag.h.in 生成（上游写回源码树）
-      │     ├─ md5/                    从 c++/externals/zip/md5.tar.gz 解出
-      │     ├─ kmc_core                静态库 ← third_party/KMCLib/c++/src/*.cpp + md5
-      │     ├─ kmc_custom              静态库 ← third_party/KMCLib/c++/custom/*.cpp
-      │     └─ _backend.<soabi>        单模块 ← cxx/bindings/*.cpp + pybind11
+      │     ├─ gen/mpiflag.h           generated from cxx/mpiflag.h.in (upstream writes it back into the source tree)
+      │     ├─ md5/                    extracted from c++/externals/zip/md5.tar.gz
+      │     ├─ kmc_core                static library ← third_party/KMCLib/c++/src/*.cpp + md5
+      │     ├─ kmc_custom              static library ← third_party/KMCLib/c++/custom/*.cpp
+      │     └─ _backend.<soabi>        single module ← cxx/bindings/*.cpp + pybind11
       │
-      └── install() → wheel 内的 pykmclib/Backend/_backend.*
+      └── install() → pykmclib/Backend/_backend.* inside the wheel
 ```
 
-要点：
+Key points:
 
-- **pybind11 的 CMake 目录必须显式取**：pybind11 wheel 把配置放在
-  `site-packages/pybind11/share/cmake/pybind11`，而 scikit-build-core 只把 site-packages
-  本身加入 `CMAKE_PREFIX_PATH`，`find_package(pybind11 CONFIG)` 找不到。构建脚本用
-  `python -m pybind11 --cmakedir` 把路径加进去。
-- **C++ 标准是 17**（pybind11 3.x 的要求），上游代码在 C++17 下可直接编译。
-- **生成物一律落构建目录**，源码树保持只读可用（sdist、conda 沙箱都依赖这一点）。
+- **pybind11's CMake directory must be looked up explicitly**: the pybind11 wheel puts its config
+  under `site-packages/pybind11/share/cmake/pybind11`, whereas scikit-build-core only adds
+  site-packages itself to `CMAKE_PREFIX_PATH`, so `find_package(pybind11 CONFIG)` cannot find it.
+  The build script adds the path using `python -m pybind11 --cmakedir`.
+- **The C++ standard is 17** (required by pybind11 3.x); the upstream code compiles as-is under
+  C++17.
+- **All generated files go into the build directory**, so the source tree stays usable when
+  read-only (the sdist and the conda sandbox both depend on this).
 
 ---
 
-## 2. 本地开发
+## 2. Local development
 
 ```bash
-uv sync                     # 建 .venv（Python 3.12，见 .python-version）并编译扩展
-uv run pytest -q            # 本仓库测试
+uv sync                     # create .venv (Python 3.12, see .python-version) and compile the extension
+uv run pytest -q            # tests for this repository
 uv build                    # wheel + sdist
 
-# 改 C++/绑定时，uv 的 cache-keys 会触发重编；强制重编：
+# When C++/bindings change, uv's cache-keys trigger a rebuild; to force one:
 uv sync --reinstall-package pykmclib
 ```
 
-### 上游回归
+### Upstream regression
 
-上游测试在 vendored 子树里，脚本以 `KMCLib → pykmclib` 别名方式离线运行：
+The upstream tests live in the vendored subtree; the script runs them offline by aliasing
+`KMCLib → pykmclib`:
 
 ```bash
-uv run python scripts/run_upstream_tests.py --units      # ~2 s，188 passed
-uv run python scripts/run_upstream_tests.py --functests  # ~3 min，8 个端到端用例
-uv run python scripts/run_upstream_tests.py --units -k OnTheFlyMSD   # 过滤
+uv run python scripts/run_upstream_tests.py --units      # ~2 s, 188 passed
+uv run python scripts/run_upstream_tests.py --functests  # ~3 min, 8 end-to-end cases
+uv run python scripts/run_upstream_tests.py --units -k OnTheFlyMSD   # filter
 ```
 
-### 同步上游
+### Syncing upstream
 
 ```bash
-uv run python scripts/upstream_info.py            # 当前钉住的 SHA + 同步/审阅命令
-uv run python scripts/gen_python_layer.py         # 从快照重生成改名后的 Python 前端
-uv run python scripts/gen_python_layer.py --check # CI 用：无漂移则通过
+uv run python scripts/upstream_info.py            # currently pinned SHA + sync/review commands
+uv run python scripts/gen_python_layer.py         # regenerate the renamed Python front end from the snapshot
+uv run python scripts/gen_python_layer.py --check # for CI: passes if there is no drift
 ```
 
 ---
 
-## 3. 版本号
+## 3. Version number
 
-唯一来源是 `src/pykmclib/__init__.py` 的 `__version__`，`pyproject.toml` 用
-scikit-build-core 的 `metadata.regex` provider 读取，`conda/recipe/meta.yaml` 手动同步。
-发版示例（`0.0.1 → 0.0.2`）：
+The single source of truth is `__version__` in `src/pykmclib/__init__.py`. `pyproject.toml` reads it
+through scikit-build-core's `metadata.regex` provider, and `conda/recipe/meta.yaml` is synced by
+hand. Release example (`0.0.1 → 0.0.2`):
 
 ```bash
-# 1) 改 __version__ = "0.0.2"，同步 conda/recipe/meta.yaml 的 version
-# 2) 刷新锁文件（建议）
+# 1) Set __version__ = "0.0.2" and sync the version in conda/recipe/meta.yaml
+# 2) Refresh the lock file (recommended)
 uv lock
-# 3) 打 tag 触发发布
+# 3) Tag to trigger the release
 git tag v0.0.2 && git push origin main --tags
 ```
 
 ---
 
-## 4. 发布到 PyPI
+## 4. Releasing to PyPI
 
-1. 在 PyPI 上创建项目 `pykmclib`，并配置 **Trusted Publishing**：
-   Owner `LiuGaoyong`、Repository `pykmclib`、Workflow `wheels.yml`、Environment `pypi`。
-   配好之后不需要 API token。
-2. 推送 `v*` tag 会触发 `.github/workflows/wheels.yml`：
-   - `ubuntu-latest` / `macos-13` / `macos-14` / `windows-latest` 上用 cibuildwheel 构建
-     cp310–cp314 的 wheel（Linux 走 manylinux；swig 已不需要，pybind11 由
-     `build-system.requires` 提供）；
-   - 单独的 job 构建 sdist；
-   - 全部成功后 `pypa/gh-action-pypi-publish` 上传。
-3. 发布后自检：
+1. Create the `pykmclib` project on PyPI and configure **Trusted Publishing**:
+   Owner `LiuGaoyong`, Repository `pykmclib`, Workflow `wheels.yml`, Environment `pypi`.
+   Once that is set up, no API token is needed.
+2. Pushing a `v*` tag triggers `.github/workflows/wheels.yml`:
+   - cibuildwheel builds cp310–cp314 wheels on `ubuntu-latest` / `macos-13` / `macos-14` /
+     `windows-latest` (Linux uses manylinux; swig is no longer needed, and pybind11 is provided by
+     `build-system.requires`);
+   - a separate job builds the sdist;
+   - once everything succeeds, `pypa/gh-action-pypi-publish` uploads the artifacts.
+3. Post-release sanity check:
 
 ```bash
 uv venv /tmp/pypi-check
@@ -103,26 +107,27 @@ uv pip install --python /tmp/pypi-check/bin/python pykmclib
 
 ---
 
-## 5. 发布到 conda-forge
+## 5. Releasing to conda-forge
 
-前置条件：PyPI 上已有该版本的 sdist（conda-forge 用 sdist 构建）。
+Prerequisite: the sdist for that version is already on PyPI (conda-forge builds from the sdist).
 
-1. 取 sdist 的 sha256 填进 `conda/recipe/meta.yaml`
-   （`conda/README.md` 里有可直接复制的一行命令）。
-2. 把 `conda/recipe/` 拷成 `conda-forge/staged-recipes` 的 `recipes/pykmclib/` 提 PR。
-   recipe 的 build 依赖是编译器 + `cmake` + `ninja`，host 里是
-   `python`/`pip`/`scikit-build-core`/`pybind11`/`numpy`。
-3. 合并后自动生成 `pykmclib-feedstock`，之后的版本由 autotick bot 自动提 PR。
+1. Take the sdist's sha256 and fill it into `conda/recipe/meta.yaml`
+   (`conda/README.md` has a one-liner you can copy).
+2. Copy `conda/recipe/` to `recipes/pykmclib/` in `conda-forge/staged-recipes` and open a PR.
+   The recipe's build dependencies are the compilers + `cmake` + `ninja`; the host section has
+   `python`/`pip`/`scikit-build-core`/`pybind11`/`numpy`.
+3. After the merge, `pykmclib-feedstock` is generated automatically, and the autotick bot opens PRs
+   for later versions.
 
 ---
 
-## 6. 已知限制
+## 6. Known limitations
 
-| 项目 | 状态 |
+| Item | Status |
 | --- | --- |
-| MPI 并行 | 代码路径保留（`-DKMC_ENABLE_MPI=ON`），**未验证**；默认串行构建 |
-| Windows | 三平台 wheel 之一；CI 覆盖，MSVC 下若需补丁只允许放在 `cxx/` |
-| Python 3.14 | 已列入 classifiers 与 cibuildwheel 矩阵 |
-| 上游 cppunit 单测 | 未接入（`third_party/KMCLib/c++/unittest` 保留但不编译） |
-| `KMCConfiguration._script()` | 上游对"每个位点多粒子"的配置会抛 `TypeError`（2.0-alpha 遗留），未修 |
-| 轨迹默认格式 | `KMCLatticeModel.run()` 默认 lattice 脚本格式；要 XYZ 需显式传 `trajectory_type="xyz"` |
+| MPI parallelism | The code path is kept (`-DKMC_ENABLE_MPI=ON`) but is **unverified**; the default build is serial |
+| Windows | One of the three wheel platforms; covered by CI. If MSVC needs patches, they may only go in `cxx/` |
+| Python 3.14 | Listed in the classifiers and in the cibuildwheel matrix |
+| Upstream cppunit unit tests | Not wired in (`third_party/KMCLib/c++/unittest` is kept but not compiled) |
+| `KMCConfiguration._script()` | Upstream raises `TypeError` for configurations with multiple particles per site (left over from 2.0-alpha); not fixed |
+| Default trajectory format | `KMCLatticeModel.run()` defaults to the lattice script format; for XYZ you must pass `trajectory_type="xyz"` explicitly |

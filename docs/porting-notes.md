@@ -1,103 +1,113 @@
-# 绑定层移植记录：SWIG → pybind11
+# Binding layer porting notes: SWIG → pybind11
 
-pykmclib 把 KMCLib 的 C++ 后端换成 pybind11 绑定，以支持 Windows / macOS / Linux 三端
-wheel（SWIG 路线在 Windows 上从未验证过）。本文记录这次移植的语义差异、平台注意事项，
-以及上游测试的已知失败清单。
+pykmclib replaces the bindings of KMCLib's C++ backend with pybind11 in order to support wheels on
+Windows / macOS / Linux (the SWIG route was never verified on Windows). This document records the
+semantic differences of the port, platform caveats, and the list of known failures in the upstream
+tests.
 
-## 1. 布局
+## 1. Layout
 
 ```
-cxx/bindings/              每个类一个翻译单元
-  common.h                 公共 include + bind_* 声明
+cxx/bindings/              one translation unit per class
+  common.h                 shared includes + bind_* declarations
   module.cpp               PYBIND11_MODULE(_backend)
   coordinate.cpp typebucket.cpp configuration.cpp latticemap.cpp
   process.cpp interactions.cpp latticemodel.cpp timer.cpp
   ontheflymsd.cpp ratecalculator.cpp mpicommons.cpp random.cpp custom.cpp
 src/pykmclib/Backend/
-  Backend.py               门面：re-export _backend + std::vector/std::map façade
-  Custom.py                门面：C++ 示例速率计算器
-  _backend.<abi>.so/.pyd   编译产物（wheel 内）
+  Backend.py               facade: re-exports _backend + std::vector/std::map façades
+  Custom.py                facade: C++ example rate calculators
+  _backend.<abi>.so/.pyd   build artifact (inside the wheel)
 ```
 
-上游 Python 前端（4.5k 行）**一行未改**，只是由
-`scripts/gen_python_layer.py` 把绝对导入 `KMCLib` 重写为 `pykmclib`。
+The upstream Python front end (4.5k lines) is **unchanged, line for line**, except that
+`scripts/gen_python_layer.py` rewrites the absolute `KMCLib` imports to `pykmclib`.
 
-## 2. 关键语义差异与对策
+## 2. Key semantic differences and how they are handled
 
-### 2.1 容器：SWIG `StdVector*` → Python façade
+### 2.1 Containers: SWIG `StdVector*` → Python façades
 
-上游前端直接构造 `Backend.StdVectorInt(...)`、`Backend.StdMapStringInt(...)`，并对返回值调用
-`.size()`、`[i]`、`push_back`。pybind11 在调用边界把 list/dict 转成 STL 容器，所以
-`src/pykmclib/Backend/Backend.py` 提供了 `list`/`dict` 子类作为 façade：
+The upstream front end constructs `Backend.StdVectorInt(...)` and `Backend.StdMapStringInt(...)`
+directly, and calls `.size()`, `[i]` and `push_back` on return values. pybind11 converts lists/dicts
+to STL containers at the call boundary, so `src/pykmclib/Backend/Backend.py` provides `list`/`dict`
+subclasses as façades:
 
-| 上游用法 | 实现 |
+| Upstream usage | Implementation |
 | --- | --- |
-| `StdVectorInt([1,2])` / `StdVectorDouble(n)` / `StdVectorString(1, "A")` | `_StdVector.__init__` 支持无参、序列、尺寸、尺寸+填充四种形式 |
-| `.push_back(x)` / `.size()` | `push_back = list.append`，`size()` 返回 `len()` |
-| `StdVectorTypeBucket(4, TypeBucket(3))` 再逐个改元素 | 填充构造用 `copy.deepcopy`，元素互相独立（SWIG 也是这么做的） |
-| 返回值与 tuple 比较（上游测试写法） | façade 实现按元素比较的 `__eq__`，嵌套 list/tuple 归一化 |
-| `StdMapStringInt({"A": 1})` | `dict` 子类；C++ 侧签名是 `std::map<std::string,int>` |
+| `StdVectorInt([1,2])` / `StdVectorDouble(n)` / `StdVectorString(1, "A")` | `_StdVector.__init__` supports four forms: no arguments, a sequence, a size, and size + fill value |
+| `.push_back(x)` / `.size()` | `push_back = list.append`; `size()` returns `len()` |
+| `StdVectorTypeBucket(4, TypeBucket(3))` followed by modifying elements one by one | The fill constructor uses `copy.deepcopy`, so the elements are independent of each other (SWIG does the same) |
+| Comparing return values with tuples (as the upstream tests do) | The façade implements an element-wise `__eq__`, normalizing nested lists/tuples |
+| `StdMapStringInt({"A": 1})` | A `dict` subclass; the C++ signature is `std::map<std::string,int>` |
 
-为避免"从 C++ 返回的容器是裸 list"，`Backend.py` 里给 `Configuration` / `Interactions` /
-`OnTheFlyMSD` 定义了薄子类，把查询结果包成对应 façade（上游测试对这些返回值的类型、
-`.size()`、与 tuple 的相等性都有断言）。
+To avoid containers returned from C++ being bare lists, `Backend.py` defines thin subclasses of
+`Configuration` / `Interactions` / `OnTheFlyMSD` that wrap query results in the matching façade
+(the upstream tests assert on the type of these return values, on `.size()`, and on equality with
+tuples).
 
-### 2.2 引用与生命周期
+### 2.2 References and lifetimes
 
-C++ 侧多处保存引用，pybind11 需要显式保活：
+The C++ side stores references in several places, which pybind11 has to keep alive explicitly:
 
-| 位置 | 处理 |
+| Location | Handling |
 | --- | --- |
-| `Interactions(const std::vector<CustomRateProcess>&, bool, const RateCalculator&)` 内部存 `const RateCalculator&` | `py::keep_alive<1, 4>()` |
-| `LatticeModel(Configuration&, SimulationTimer&, …)` 存配置与计时器引用 | `keep_alive<1,2>`、`keep_alive<1,3>`，另 `keep_alive<1,5>` 保住 interactions（其中含 calculator 引用） |
+| `Interactions(const std::vector<CustomRateProcess>&, bool, const RateCalculator&)` stores a `const RateCalculator&` internally | `py::keep_alive<1, 4>()` |
+| `LatticeModel(Configuration&, SimulationTimer&, …)` stores references to the configuration and the timer | `keep_alive<1,2>`, `keep_alive<1,3>`, plus `keep_alive<1,5>` to keep the interactions alive (which hold the calculator reference) |
 | `OnTheFlyMSD(const Configuration&, …)` | `keep_alive<1,2>` |
 | `BucketsTestCalculator(const Configuration&)` / `IsingTestCalculator` | `keep_alive<1,2>` |
 | `interactions()` / `configuration()` / `latticeMap()` / `rateCalculator()` | `reference_internal` |
 
-`setUpdateInfo` 必须就地修改（上游 `KMCInteractions` 依赖 `cpp_config2 = cpp_config1` 的别名语义），
-pybind11 绑定天然满足。
+`setUpdateInfo` must modify in place (upstream `KMCInteractions` relies on the aliasing semantics of
+`cpp_config2 = cpp_config1`); pybind11 bindings satisfy this naturally.
 
-### 2.3 director / trampoline
+### 2.3 Directors / trampolines
 
-`RateCalculator::backendRateCallback` 与 `backendRateCallbackBuckets` 是 `const` 虚函数，
-`SimpleDummyBaseClass::whoAmI` 同理。trampoline 类用 `PYBIND11_OVERRIDE` 转发到 Python。
-`KMCRateCalculatorPlugin.__init__` 里的 `Backend.RateCalculator.__init__(self)` 在 pybind11 下
-等价于 `super().__init__()`，工作正常。
+`RateCalculator::backendRateCallback` and `backendRateCallbackBuckets` are `const` virtual
+functions, and so is `SimpleDummyBaseClass::whoAmI`. The trampoline classes forward to Python with
+`PYBIND11_OVERRIDE`. The `Backend.RateCalculator.__init__(self)` call in
+`KMCRateCalculatorPlugin.__init__` is equivalent to `super().__init__()` under pybind11 and works
+correctly.
 
-### 2.4 打印格式
+### 2.4 Print format
 
-上游 `KMCLatticeModel.__printMatchInfo` 直接 `print(i, p.sites())`，而 SWIG 的 vector proxy
-打印成 tuple。因此 `Process.sites()` 绑定返回 **tuple**，保持输出兼容（上游测试比对这段输出）。
+Upstream `KMCLatticeModel.__printMatchInfo` does `print(i, p.sites())` directly, and SWIG's vector
+proxy prints as a tuple. The `Process.sites()` binding therefore returns a **tuple** to keep the
+output compatible (the upstream tests compare this output).
 
 ## 3. Windows
 
-可行性扫描结论（`third_party/KMCLib/c++/src`）：
+Findings of the feasibility scan (`third_party/KMCLib/c++/src`):
 
-- 无 `unistd.h` / `gettimeofday` / `strptime` / `localtime_r` / VLA 等 POSIX 依赖；
-- 全树在 `-std=c++17` 下语法通过（21 个编译单元）；
-- 已知风险点只有 `hash.cpp` 的 `sprintf`（用 `_CRT_SECURE_NO_WARNINGS` 关掉告警）与
-  `PRIx64`（文件已 `#include <cinttypes>`）。
+- No POSIX dependencies such as `unistd.h` / `gettimeofday` / `strptime` / `localtime_r` / VLAs;
+- The whole tree passes a syntax check under `-std=c++17` (21 translation units);
+- The only known risk points are `sprintf` in `hash.cpp` (warning silenced with
+  `_CRT_SECURE_NO_WARNINGS`) and `PRIx64` (the file already has `#include <cinttypes>`).
 
-编译选项：`/W3 /EHsc /bigobj /utf-8` + `NOMINMAX`、`_USE_MATH_DEFINES`、
-`_CRT_SECURE_NO_WARNINGS`。`md5.c` 用 C++ 编译这条在 MSVC 下同样必须保留
-（否则 `MD5_*` 是 C 修饰名，import 时找不到符号）。
+Compile options: `/W3 /EHsc /bigobj /utf-8` + `NOMINMAX`, `_USE_MATH_DEFINES`,
+`_CRT_SECURE_NO_WARNINGS`. The rule that `md5.c` is compiled as C++ must also be kept under MSVC
+(otherwise the `MD5_*` symbols get C linkage names and cannot be found at import time).
 
-## 4. 上游测试的已知失败
+## 4. Known failures in the upstream tests
 
-上游测试在 vendored 子树里（`python/unittest`、`python/functest`），由
-`scripts/run_upstream_tests.py` 以 `KMCLib → pykmclib` 别名方式离线运行。当前：
+The upstream tests live in the vendored subtree (`python/unittest`, `python/functest`) and are run
+offline by `scripts/run_upstream_tests.py`, which aliases `KMCLib → pykmclib`. Currently:
 
-- 单元测试：188 passed，3 个 known failure（脚本内 `XFAIL`，`--strict` 可强制失败）
-  - `CheckUtilitiesTest.testCheckCellVectors` —— numpy ≥ 1.24 拒绝 ragged 数组（测试本身写法过时）
-  - `KMCLatticeModelTest.testRunRngTypeDevice` —— 本机 `std::random_device` 有真实熵，DEVICE 被接受
-  - `TrajectoryTest.testAppendAndFlushTime` —— 断言两次 append 的 wall-clock 间隔小于 0.1 s，
-    机器负载高时偶发失败（与绑定层无关）
-- 功能测试：8 个端到端用例（1D/3D 扩散、buckets、Ising、on-the-fly 速率、时间步长分布）全通过。
+- Unit tests: 188 passed, 3 known failures (`XFAIL` in the script; `--strict` forces them to fail)
+  - `CheckUtilitiesTest.testCheckCellVectors` — numpy ≥ 1.24 rejects ragged arrays (the test itself
+    is written in an outdated way)
+  - `KMCLatticeModelTest.testRunRngTypeDevice` — `std::random_device` on this machine has real
+    entropy, so DEVICE is accepted
+  - `TrajectoryTest.testAppendAndFlushTime` — asserts that the wall-clock interval between two
+    appends is below 0.1 s, which fails intermittently under high machine load (unrelated to the
+    binding layer)
+- Functional tests: all 8 end-to-end cases pass (1D/3D diffusion, buckets, Ising, on-the-fly rates,
+  time-step distribution).
 
-## 5. 修改指引
+## 5. Guidelines for changes
 
-- 新增/修改绑定：只动 `cxx/bindings/`；若改了 C++ 侧可见接口，跑
-  `uv run pytest -q` + `uv run python scripts/run_upstream_tests.py --units`。
-- 不要为了让上游测试通过去改 `src/pykmclib/`（那是上游代码）；改 `Backend.py` 门面或绑定层。
-- 如果上游 Python 前端升级，先 `git subtree pull`，再
-  `uv run python scripts/gen_python_layer.py`，然后审阅 `git diff src/pykmclib`。
+- Adding/changing bindings: touch only `cxx/bindings/`; if the interface visible from C++ changes,
+  run `uv run pytest -q` + `uv run python scripts/run_upstream_tests.py --units`.
+- Do not modify `src/pykmclib/` to make upstream tests pass (that is upstream code); change the
+  `Backend.py` facade or the binding layer instead.
+- If the upstream Python front end is updated, first run `git subtree pull`, then
+  `uv run python scripts/gen_python_layer.py`, and then review `git diff src/pykmclib`.
