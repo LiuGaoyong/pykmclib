@@ -8,7 +8,7 @@ import sys
 
 import pytest
 
-from pykmclib.cli import site_types
+from pykmclib.cli import _hydra_problem, site_types
 
 needs_hydra = pytest.mark.skipif(importlib.util.find_spec("hydra") is None, reason="hydra-core is not installed")
 
@@ -63,15 +63,11 @@ def test_missing_hydra_is_reported(tmp_path):
     assert "pykmclib[cli]" in result.stderr
 
 
-def test_old_hydra_is_rejected_on_python_3_14(tmp_path):
-    prelude = (
-        "import sys, types; "
-        "sys.modules['hydra'] = types.SimpleNamespace(__version__='1.3.8'); "
-        "sys.version_info = (3, 14, 0, 'final', 0); "
-    )
-    result = pykmclib("model=diffusion1d", cwd=tmp_path, prelude=prelude)
-    assert result.returncode == 1
-    assert "1.3.8" in result.stderr
+def test_old_hydra_is_rejected_on_python_3_14():
+    assert "1.3.8" in _hydra_problem("1.3.8", (3, 14, 0))
+    assert _hydra_problem("1.3.8", (3, 13, 9)) is None
+    assert _hydra_problem("1.4.0rc3", (3, 14, 0)) is None
+    assert _hydra_problem("2.0", (3, 15, 0)) is None
 
 
 @needs_hydra

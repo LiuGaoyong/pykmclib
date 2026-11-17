@@ -125,6 +125,14 @@ def _version_tuple(version):
     return tuple(parts)
 
 
+def _hydra_problem(hydra_version, python_version):
+    """Why this hydra-core cannot be used on this Python, or ``None`` if it can."""
+    # The argument parser of hydra-core < 1.4 raises on Python 3.14.
+    if tuple(python_version[:2]) >= (3, 14) and _version_tuple(hydra_version) < (1, 4):
+        return _OLD_HYDRA.format(version=hydra_version)
+    return None
+
+
 def _task(cfg):
     from hydra.core.hydra_config import HydraConfig
 
@@ -139,9 +147,9 @@ def main():
         sys.stderr.write(_MISSING_HYDRA)
         return 1
 
-    # The argument parser of hydra-core < 1.4 raises on Python 3.14.
-    if sys.version_info >= (3, 14) and _version_tuple(hydra.__version__) < (1, 4):
-        sys.stderr.write(_OLD_HYDRA.format(version=hydra.__version__))
+    problem = _hydra_problem(hydra.__version__, sys.version_info)
+    if problem is not None:
+        sys.stderr.write(problem)
         return 1
 
     hydra.main(version_base="1.3", config_path="conf", config_name="config")(_task)()
