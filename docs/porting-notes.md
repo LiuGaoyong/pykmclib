@@ -119,6 +119,10 @@ offline by `scripts/run_upstream_tests.py`, which aliases `KMCLib → pykmclib`.
   - `TrajectoryTest.testAppendAndFlushTime` — asserts that the wall-clock interval between two
     appends is below 0.1 s, which fails intermittently under high machine load (unrelated to the
     binding layer)
+  - Windows only: `LatticeTrajectoryTest.testAppend` and `TrajectoryTest.testAppendTimeUpdate` set
+    the flush interval to zero and expect the next append to flush, which requires two consecutive
+    `time.time()` readings to differ; up to Python 3.12 the Windows clock ticks only every
+    ~15.6 ms, so they fail intermittently (unrelated to the binding layer)
 - Functional tests: all 8 end-to-end cases pass (1D/3D diffusion, buckets, Ising, on-the-fly rates,
   time-step distribution).
 

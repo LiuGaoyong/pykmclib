@@ -60,8 +60,9 @@ jobs:
       - name: Run the upstream KMCLib unit tests
         run: uv run --python ${{ matrix.python }} python scripts/run_upstream_tests.py --units
 
+      # Build for the interpreter of this job, not for the one in .python-version.
       - name: Build wheel and sdist
-        run: uv build
+        run: uv build --python ${{ matrix.python }}
 
       - name: Install the built wheel in a clean environment
         if: runner.os != 'Windows'
@@ -86,7 +87,10 @@ jobs:
     name: vendored snapshot + upstream functional tests
     runs-on: ubuntu-latest
     steps:
+      # Full history: upstream_info.py reads the subtree sync commits.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true

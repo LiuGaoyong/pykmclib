@@ -43,6 +43,19 @@ XFAIL = {
     "KMCLibTest.Utilities.Trajectory.TrajectoryTest.TrajectoryTest.testAppendAndFlushTime": "asserts on elapsed wall-clock time; flakes under load",
 }
 
+# Windows only: with a flush interval of zero these tests expect the next
+# append to flush, i.e. two consecutive time.time() readings to differ.  Up to
+# Python 3.12 the Windows clock only ticks every ~15.6 ms, so the readings are
+# often equal and nothing is flushed.
+_COARSE_CLOCK = "needs time.time() to advance between two calls; the Windows clock ticks every ~15.6 ms"
+if sys.platform == "win32":
+    XFAIL.update(
+        {
+            "KMCLibTest.Utilities.Trajectory.LatticeTrajectoryTest.LatticeTrajectoryTest.testAppend": _COARSE_CLOCK,
+            "KMCLibTest.Utilities.Trajectory.TrajectoryTest.TrajectoryTest.testAppendTimeUpdate": _COARSE_CLOCK,
+        }
+    )
+
 
 def alias_kmclib() -> None:
     """Make ``import KMCLib...`` resolve to pykmclib, without re-executing modules."""
