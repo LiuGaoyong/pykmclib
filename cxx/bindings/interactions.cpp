@@ -22,7 +22,8 @@ void bind_interactions(py::module_ &m) {
         .def("totalAvailableSites", &Interactions::totalAvailableSites)
         .def("totalRate", &Interactions::totalRate)
         .def("pickProcessIndex", &Interactions::pickProcessIndex)
-        .def("pickProcess", &Interactions::pickProcess, py::return_value_policy::reference)
+        // The returned Process is owned by the Interactions object.
+        .def("pickProcess", &Interactions::pickProcess, py::return_value_policy::reference_internal)
         .def("probabilityTable", &Interactions::probabilityTable)
         .def("updateProbabilityTable", &Interactions::updateProbabilityTable)
         .def("updateProcessMatchLists", &Interactions::updateProcessMatchLists, py::arg("configuration"),
@@ -30,10 +31,13 @@ void bind_interactions(py::module_ &m) {
         .def("clearMatching", &Interactions::clearMatching)
         .def("rateCalculator", &Interactions::rateCalculator, py::return_value_policy::reference_internal)
         .def("processes",
-             [](Interactions &interactions) {
+             [](py::object self) {
+                 // The pointers refer to processes owned by the Interactions
+                 // object, so every element keeps `self` alive.
+                 Interactions &interactions = self.cast<Interactions &>();
                  py::list result;
                  for (Process *process : interactions.processes()) {
-                     result.append(py::cast(process, py::return_value_policy::reference));
+                     result.append(py::cast(process, py::return_value_policy::reference_internal, self));
                  }
                  return result;
              });
