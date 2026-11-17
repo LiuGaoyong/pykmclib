@@ -5,27 +5,38 @@
 simulations. The C++ backend is KMCLib's original implementation, bound with **pybind11** and built
 with **scikit-build-core + CMake**, so it can be installed directly from PyPI / conda-forge.
 
-> Status: `0.0.1` (alpha). The Python layer keeps the same API as upstream KMCLib. All 188 of
-> upstream's own unit tests pass (plus 2 known failures that depend on the platform / numpy version,
-> see [docs/porting-notes.md](docs/porting-notes.md)), and the 8 end-to-end functional tests pass.
+> Status: `0.0.1` (alpha). The Python layer keeps the same API as upstream KMCLib. Of upstream's
+> own 190 unit tests, 187 pass and 3 are known failures that depend on the platform, the numpy
+> version or the machine load (see [docs/porting-notes.md](docs/porting-notes.md)); the 8
+> end-to-end functional tests pass.
 
 ## Installation
+
+pykmclib has **not been released to PyPI or conda-forge yet**. Until the first release, install it
+from the repository; this requires CMake ≥ 3.21 and a C++17 compiler (pybind11 and
+scikit-build-core are installed automatically as build-time dependencies):
+
+```bash
+pip install git+https://github.com/LiuGaoyong/pykmclib.git
+```
+
+Once a release is published, the usual commands apply:
 
 ```bash
 pip install pykmclib
 # or
 conda install -c conda-forge pykmclib
-```
 
-Installing from source requires CMake ≥ 3.21 and a C++17 compiler (pybind11 and scikit-build-core
-are installed automatically as build-time dependencies):
-
-```bash
 pip install --no-binary pykmclib pykmclib   # uses the sdist (self-contained, includes the C++ sources)
 ```
 
-Supported platforms: Linux (manylinux x86_64), macOS (x86_64 / arm64), Windows (x86_64),
-CPython 3.10–3.14.
+Wheels are built for CPython 3.10–3.14 on:
+
+| Platform | Architectures | Notes |
+| --- | --- | --- |
+| Linux | x86_64, aarch64 (arm64) | both `manylinux2014` (glibc ≥ 2.17) and `manylinux_2_28` (glibc ≥ 2.28); pip picks the right one. No musllinux wheels |
+| macOS | x86_64 (10.15+), arm64 (11.0+) | |
+| Windows | x86_64 | |
 
 ## Quick start
 
@@ -34,34 +45,51 @@ performing a random walk in a sea of A atoms.
 
 ```python
 import numpy as np
-from pykmclib import (KMCUnitCell, KMCLattice, KMCConfiguration, KMCProcess,
-                      KMCInteractions, KMCLatticeModel, KMCControlParameters,
-                      OnTheFlyMSD)
+from pykmclib import (
+    KMCUnitCell,
+    KMCLattice,
+    KMCConfiguration,
+    KMCProcess,
+    KMCInteractions,
+    KMCLatticeModel,
+    KMCControlParameters,
+    OnTheFlyMSD,
+)
 
-unit_cell = KMCUnitCell(cell_vectors=np.array([[5.2, 0.0, 0.0],
-                                               [0.0, 1.0, 0.0],
-                                               [0.0, 0.0, 1.0]]),
-                        basis_points=[[0.0, 0.0, 0.0]])
+unit_cell = KMCUnitCell(
+    cell_vectors=np.array([[5.2, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]), basis_points=[[0.0, 0.0, 0.0]]
+)
 lattice = KMCLattice(unit_cell=unit_cell, repetitions=(10, 1, 1), periodic=(True, False, False))
 
 types = ["A"] * 10
 types[5] = "B"
 configuration = KMCConfiguration(lattice=lattice, types=types, possible_types=["A", "B"])
 
-left = KMCProcess([[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0]],
-                  elements_before=["B", "A"], elements_after=["A", "B"],
-                  basis_sites=[0], rate_constant=1.5)
-right = KMCProcess([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
-                   elements_before=["B", "A"], elements_after=["A", "B"],
-                   basis_sites=[0], rate_constant=1.5)
+left = KMCProcess(
+    [[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0]],
+    elements_before=["B", "A"],
+    elements_after=["A", "B"],
+    basis_sites=[0],
+    rate_constant=1.5,
+)
+right = KMCProcess(
+    [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+    elements_before=["B", "A"],
+    elements_after=["A", "B"],
+    basis_sites=[0],
+    rate_constant=1.5,
+)
 interactions = KMCInteractions(processes=[left, right], implicit_wildcards=True)
 
 model = KMCLatticeModel(configuration=configuration, interactions=interactions)
 msd = OnTheFlyMSD(history_steps=200, n_bins=100, t_max=2500.0, track_type="B")
 
-model.run(KMCControlParameters(number_of_steps=200_000, dump_interval=50_000, seed=1234),
-          trajectory_filename="traj.xyz", trajectory_type="xyz",
-          analysis=[msd])
+model.run(
+    KMCControlParameters(number_of_steps=200_000, dump_interval=50_000, seed=1234),
+    trajectory_filename="traj.xyz",
+    trajectory_type="xyz",
+    analysis=[msd],
+)
 ```
 
 Concepts such as `sites`, `rates` and `interactions` are the same as in the upstream manual
@@ -105,7 +133,7 @@ the tree while still recording the upstream commit via `git-subtree-split`. See
 ```bash
 uv sync                                          # create the environment + compile the C++ extension
 uv run pytest -q                                 # tests for this repository
-uv run python scripts/run_upstream_tests.py --units      # upstream's 188 unit tests
+uv run python scripts/run_upstream_tests.py --units      # upstream's 190 unit tests
 uv run python scripts/run_upstream_tests.py --functests  # upstream end-to-end cases
 uv build                                         # wheel + sdist
 uv run python scripts/upstream_info.py           # the currently pinned upstream commit

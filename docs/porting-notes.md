@@ -92,7 +92,8 @@ Compile options: `/W3 /EHsc /bigobj /utf-8` + `NOMINMAX`, `_USE_MATH_DEFINES`,
 The upstream tests live in the vendored subtree (`python/unittest`, `python/functest`) and are run
 offline by `scripts/run_upstream_tests.py`, which aliases `KMCLib → pykmclib`. Currently:
 
-- Unit tests: 188 passed, 3 known failures (`XFAIL` in the script; `--strict` forces them to fail)
+- Unit tests: 190 in total, 187 passed and 3 known failures (`XFAIL` in the script; `--strict`
+  forces them to fail)
   - `CheckUtilitiesTest.testCheckCellVectors` — numpy ≥ 1.24 rejects ragged arrays (the test itself
     is written in an outdated way)
   - `KMCLatticeModelTest.testRunRngTypeDevice` — `std::random_device` on this machine has real

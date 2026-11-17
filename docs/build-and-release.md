@@ -55,7 +55,7 @@ The upstream tests live in the vendored subtree; the script runs them offline by
 `KMCLib → pykmclib`:
 
 ```bash
-uv run python scripts/run_upstream_tests.py --units      # ~2 s, 188 passed
+uv run python scripts/run_upstream_tests.py --units      # ~2 s, 187 passed + 3 known failures
 uv run python scripts/run_upstream_tests.py --functests  # ~3 min, 8 end-to-end cases
 uv run python scripts/run_upstream_tests.py --units -k OnTheFlyMSD   # filter
 ```
@@ -78,6 +78,7 @@ hand. Release example (`0.0.1 → 0.0.2`):
 
 ```bash
 # 1) Set __version__ = "0.0.2" and sync the version in conda/recipe/meta.yaml
+#    (the publish job refuses to upload if the tag and __version__ disagree)
 # 2) Refresh the lock file (recommended)
 uv lock
 # 3) Tag to trigger the release
@@ -92,9 +93,21 @@ git tag v0.0.2 && git push origin main --tags
    Owner `LiuGaoyong`, Repository `pykmclib`, Workflow `wheels.yml`, Environment `pypi`.
    Once that is set up, no API token is needed.
 2. Pushing a `v*` tag triggers `.github/workflows/wheels.yml`:
-   - cibuildwheel builds cp310–cp314 wheels on `ubuntu-latest` / `macos-13` / `macos-14` /
-     `windows-latest` (Linux uses manylinux; swig is no longer needed, and pybind11 is provided by
-     `build-system.requires`);
+   - a pinned cibuildwheel builds cp310–cp314 wheels in seven jobs, each on a native runner:
+
+     | Job | Runner | Wheel tag |
+     | --- | --- | --- |
+     | Linux x86_64 | `ubuntu-latest` | `manylinux2014_x86_64` and `manylinux_2_28_x86_64` (one job each) |
+     | Linux arm64 | `ubuntu-24.04-arm` | `manylinux2014_aarch64` and `manylinux_2_28_aarch64` (one job each) |
+     | macOS x86_64 | `macos-15-intel` | `macosx_10_15_x86_64` |
+     | macOS arm64 | `macos-15` | `macosx_11_0_arm64` |
+     | Windows x86_64 | `windows-latest` | `win_amd64` |
+
+     The architecture and the manylinux image are set per job through `CIBW_ARCHS` and
+     `CIBW_MANYLINUX_*_IMAGE`; the shared settings live in `[tool.cibuildwheel]` in
+     `pyproject.toml`. Every wheel is tested with `pytest` inside its build environment, except
+     cp314 on manylinux2014, because numpy publishes no manylinux2014 wheel for CPython 3.14;
+   - the publish job first checks that the tag matches `__version__`;
    - a separate job builds the sdist;
    - once everything succeeds, `pypa/gh-action-pypi-publish` uploads the artifacts.
 3. Post-release sanity check:
@@ -126,7 +139,9 @@ Prerequisite: the sdist for that version is already on PyPI (conda-forge builds 
 | Item | Status |
 | --- | --- |
 | MPI parallelism | The code path is kept (`-DKMC_ENABLE_MPI=ON`) but is **unverified**; the default build is serial |
-| Windows | One of the three wheel platforms; covered by CI. If MSVC needs patches, they may only go in `cxx/` |
+| Windows | x86_64 only; covered by CI. If MSVC needs patches, they may only go in `cxx/` |
+| musllinux (Alpine) | No wheels are built; installing there compiles from the sdist |
+| manylinux2014 + CPython 3.14 | The wheel is built but not tested in CI, and numpy itself offers no wheel for that combination |
 | Python 3.14 | Listed in the classifiers and in the cibuildwheel matrix |
 | Upstream cppunit unit tests | Not wired in (`third_party/KMCLib/c++/unittest` is kept but not compiled) |
 | `KMCConfiguration._script()` | Upstream raises `TypeError` for configurations with multiple particles per site (left over from 2.0-alpha); not fixed |
