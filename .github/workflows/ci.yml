@@ -112,6 +112,10 @@ jobs:
       - name: The generated Python layer must match the snapshot
         run: uv run python scripts/gen_python_layer.py --check
 
+      # The type stub of the compiled backend is generated from the bindings.
+      - name: The committed backend stub must match the bindings
+        run: uv run python scripts/gen_stubs.py --check
+
       # End-to-end runs (diffusion, buckets, Ising, on-the-fly rates). Slow.
       - name: Upstream functional tests
         run: uv run python scripts/run_upstream_tests.py --functests

@@ -61,3 +61,11 @@ def test_rng_types_are_exposed_and_accepted(rng_name):
 
     assert isinstance(getattr(Backend, rng_name), int)
     assert Backend.setRngType(getattr(Backend, rng_name))
+
+
+def test_type_information_is_shipped():
+    from importlib.resources import files
+
+    package = files("pykmclib")
+    assert package.joinpath("py.typed").is_file()
+    assert package.joinpath("Backend", "_backend.pyi").is_file()

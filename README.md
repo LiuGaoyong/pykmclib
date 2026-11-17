@@ -107,6 +107,7 @@ While keeping the API compatible, the following has been done so far:
 | Namespace | `KMCLib` → `pykmclib` (the upstream Python layer uses absolute imports, which a script rewrites mechanically) |
 | Dependencies | The only runtime dependency is `numpy`; pybind11/cmake are needed only at build time |
 | Import side effects | The banner printed at import time is removed; MPI is still initialized/finalized exactly once |
+| Typing | The package ships `py.typed` and a generated stub for the compiled backend (`Backend/_backend.pyi`); the upstream front end itself is not annotated |
 
 ## Repository layout
 
@@ -116,7 +117,7 @@ cxx/                   Build adaptation layer: CMake logic + pybind11 bindings (
 third_party/KMCLib/    git subtree snapshot of upstream KMCLib (never edited)
 src/pykmclib/          Python package (renamed upstream front end + Backend facade)
 tests/                 Tests for this repository
-scripts/               gen_python_layer.py / run_upstream_tests.py / upstream_info.py
+scripts/               gen_python_layer.py / gen_stubs.py / run_upstream_tests.py / upstream_info.py
 docs/                  upstream-notes.md (snapshot and syncing), porting-notes.md (binding layer),
                        build-and-release.md (build and release)
 conda/                 Draft conda-forge recipe
@@ -137,6 +138,8 @@ uv run python scripts/run_upstream_tests.py --units      # upstream's 190 unit t
 uv run python scripts/run_upstream_tests.py --functests  # upstream end-to-end cases
 uv build                                         # wheel + sdist
 uv run python scripts/upstream_info.py           # the currently pinned upstream commit
+uv run python scripts/gen_stubs.py               # refresh the backend type stub after changing bindings
+uv run ruff check . && uv run ruff format --check .
 ```
 
 See [docs/build-and-release.md](docs/build-and-release.md) for details.
