@@ -107,9 +107,12 @@ git tag v0.0.2 && git push origin main --tags
      `CIBW_MANYLINUX_*_IMAGE`; the shared settings live in `[tool.cibuildwheel]` in
      `pyproject.toml`. Every wheel is tested with `pytest` inside its build environment, except
      cp314 on manylinux2014, because numpy publishes no manylinux2014 wheel for CPython 3.14;
-   - the publish job first checks that the tag matches `__version__`;
+   - `check_tag` verifies that the tag matches `__version__`; nothing is released otherwise;
    - a separate job builds the sdist;
-   - once everything succeeds, `pypa/gh-action-pypi-publish` uploads the artifacts.
+   - once everything succeeds, `pypa/gh-action-pypi-publish` uploads the artifacts to PyPI;
+   - independently of the PyPI upload, `github_release` creates the GitHub release for the tag
+     (with generated notes; marked as a pre-release for `a`/`b`/`rc`/`.dev` versions) and
+     attaches every wheel and the sdist. Re-running the job replaces the attached files.
 3. Post-release sanity check:
 
 ```bash

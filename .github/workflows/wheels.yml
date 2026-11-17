@@ -67,26 +67,29 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
-  publish:
-    name: publish to PyPI
-    needs: [build_wheels, build_sdist]
+  # Release jobs (tags only).  Both wait for every wheel and the sdist, and
+  # neither runs unless the tag matches the version in the package.
+  check_tag:
+    name: tag matches __version__
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      contents: read
-      id-token: write  # trusted publishing, no API token needed
     steps:
       - uses: actions/checkout@v4
-
-      - name: The tag must match __version__
-        run: |
+      - run: |
           version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/pykmclib/__init__.py)
           if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
             echo "tag ${GITHUB_REF_NAME} does not match __version__ = \"${version}\""
             exit 1
           fi
 
+  publish:
+    name: publish to PyPI
+    needs: [check_tag, build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # trusted publishing, no API token needed
+    steps:
       - uses: actions/download-artifact@v4
         with:
           pattern: wheels-*
@@ -97,3 +100,39 @@ jobs:
           name: sdist
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github_release:
+    name: upload to the GitHub release
+    needs: [check_tag, build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # create the release and attach files to it
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
+
+      - name: Create the release, or reuse the one that already exists
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+            echo "release ${GITHUB_REF_NAME} already exists"
+            exit 0
+          fi
+          flags="--verify-tag --generate-notes"
+          # PEP 440 pre-releases (a, b, rc, .dev) become GitHub pre-releases.
+          if echo "${GITHUB_REF_NAME}" | grep -Eq '(a|b|rc|\.dev)[0-9]+$'; then
+            flags="${flags} --prerelease"
+          fi
+          gh release create "${GITHUB_REF_NAME}" --title "pykmclib ${GITHUB_REF_NAME#v}" ${flags}
+
+      - name: Attach the wheels and the sdist
+        run: gh release upload "${GITHUB_REF_NAME}" dist/* --clobber
