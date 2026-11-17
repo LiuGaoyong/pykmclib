@@ -18,7 +18,13 @@ UPSTREAM_URL = "https://github.com/leetmaa/KMCLib"
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=REPO_ROOT, check=True, capture_output=True, text=True).stdout
+    return subprocess.run(
+        ["git", *args],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
 
 
 def split_shas() -> list[str]:
@@ -58,14 +64,20 @@ def main() -> int:
     print(f"subtree prefix           : {PREFIX}")
     if len(shas) > 1:
         print(f"previous sync            : {shas[1]}")
-        print(f"changes since then       : {UPSTREAM_URL}/compare/{shas[1]}...{current}")
+        print(
+            f"changes since then       : {UPSTREAM_URL}/compare/{shas[1]}...{current}"
+        )
     print()
     print("sync a newer upstream commit:")
-    print(f"  git subtree pull --prefix={PREFIX} {UPSTREAM_URL}.git master --squash")
+    print(
+        f"  git subtree pull --prefix={PREFIX} {UPSTREAM_URL}.git master --squash"
+    )
     print("review what a sync brought in:")
     print(f"  git log -1 --format=%B && git diff HEAD^1 HEAD -- {PREFIX}")
     print("browse the upstream commits between two syncs (needs network):")
-    print(f"  git fetch {UPSTREAM_URL}.git master && git log --oneline {shas[-1]}..FETCH_HEAD")
+    print(
+        f"  git fetch {UPSTREAM_URL}.git master && git log --oneline {shas[-1]}..FETCH_HEAD"
+    )
     return 0
 
 

@@ -65,7 +65,9 @@ def alias_kmclib() -> None:
         try:
             importlib.import_module(info.name)
         except Exception as exc:  # pragma: no cover - optional (ATK) modules
-            print(f"warning: could not import {info.name}: {exc}", file=sys.stderr)
+            print(
+                f"warning: could not import {info.name}: {exc}", file=sys.stderr
+            )
 
     sys.modules["KMCLib"] = pykmclib
     for name, module in list(sys.modules.items()):
@@ -112,7 +114,12 @@ class Recorder(unittest.TextTestResult):
         self.failed_ids.append(test_id(test))
 
 
-def run_suite(suite: unittest.TestSuite, title: str, strict: bool, workdir: Path | None = None) -> list[str]:
+def run_suite(
+    suite: unittest.TestSuite,
+    title: str,
+    strict: bool,
+    workdir: Path | None = None,
+) -> list[str]:
     """Run one suite in a scratch directory, skipping known failures."""
     known = []
     selected = unittest.TestSuite()
@@ -129,7 +136,9 @@ def run_suite(suite: unittest.TestSuite, title: str, strict: bool, workdir: Path
     os.chdir(workdir)
     try:
         print(f"\n=== {title} ===", flush=True)
-        result = unittest.TextTestRunner(verbosity=1, stream=sys.stdout, resultclass=Recorder).run(selected)
+        result = unittest.TextTestRunner(
+            verbosity=1, stream=sys.stdout, resultclass=Recorder
+        ).run(selected)
     finally:
         os.chdir(previous)
 
@@ -137,13 +146,17 @@ def run_suite(suite: unittest.TestSuite, title: str, strict: bool, workdir: Path
         print(f"known failure: {identifier} ({XFAIL[identifier]})")
     if result.skipped:
         print(f"{len(result.skipped)} skipped by the test framework")
-    print(f"ran {result.testsRun} test(s): {len(result.failed_ids)} failed, {len(known)} known failure(s) skipped")
+    print(
+        f"ran {result.testsRun} test(s): {len(result.failed_ids)} failed, {len(known)} known failure(s) skipped"
+    )
     return result.failed_ids
 
 
 def collect_units(filter_text: str | None) -> list[unittest.TestSuite]:
     sys.path.insert(0, str(UNITTEST_DIR))
-    discovered = unittest.TestLoader().discover(str(UNITTEST_DIR), pattern="*Test.py", top_level_dir=str(UNITTEST_DIR))
+    discovered = unittest.TestLoader().discover(
+        str(UNITTEST_DIR), pattern="*Test.py", top_level_dir=str(UNITTEST_DIR)
+    )
     seen: set[str] = set()
     suite = unittest.TestSuite()
     for test in iter_cases(discovered):
@@ -157,7 +170,9 @@ def collect_units(filter_text: str | None) -> list[unittest.TestSuite]:
     return [suite]
 
 
-def collect_functests(filter_text: str | None) -> list[tuple[str, Path, unittest.TestSuite]]:
+def collect_functests(
+    filter_text: str | None,
+) -> list[tuple[str, Path, unittest.TestSuite]]:
     suites = []
     for path in sorted(FUNCTEST_DIR.rglob("*Test.py")):
         relative = path.relative_to(FUNCTEST_DIR).with_suffix("")
@@ -177,12 +192,32 @@ def collect_functests(filter_text: str | None) -> list[tuple[str, Path, unittest
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--units", action="store_true", help="run the upstream unit test suite (default)")
-    group.add_argument("--functests", action="store_true", help="run the upstream end-to-end suites")
-    parser.add_argument("-k", "--filter", default=None, help="only run tests whose id contains this substring")
-    parser.add_argument("--strict", action="store_true", help="treat known-failing tests as failures")
+    group.add_argument(
+        "--units",
+        action="store_true",
+        help="run the upstream unit test suite (default)",
+    )
+    group.add_argument(
+        "--functests",
+        action="store_true",
+        help="run the upstream end-to-end suites",
+    )
+    parser.add_argument(
+        "-k",
+        "--filter",
+        default=None,
+        help="only run tests whose id contains this substring",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="treat known-failing tests as failures",
+    )
     args = parser.parse_args(argv)
 
     alias_kmclib()
@@ -195,10 +230,14 @@ def main(argv: list[str] | None = None) -> int:
             # scratch space so the vendored tree stays pristine.
             scratch = Path(tempfile.mkdtemp(prefix="pykmclib-functest-"))
             shutil.copytree(directory, scratch, dirs_exist_ok=True)
-            failures.extend(run_suite(suite, name, args.strict, workdir=scratch))
+            failures.extend(
+                run_suite(suite, name, args.strict, workdir=scratch)
+            )
     else:
         for suite in collect_units(args.filter):
-            failures.extend(run_suite(suite, "upstream unit tests", args.strict))
+            failures.extend(
+                run_suite(suite, "upstream unit tests", args.strict)
+            )
 
     if failures:
         print("\nfailed:")

@@ -26,7 +26,15 @@ class DoubleRateCalculator(KMCRateCalculatorPlugin):
     def initialize(self):
         self.calls = 0
 
-    def rate(self, coords, types_before, types_after, rate_constant, process_number, global_coordinate):
+    def rate(
+        self,
+        coords,
+        types_before,
+        types_after,
+        rate_constant,
+        process_number,
+        global_coordinate,
+    ):
         assert coords.shape[1] == 3
         assert isinstance(types_before, (list, tuple))
         self.calls += 1
@@ -43,28 +51,48 @@ class DoubleRateCalculator(KMCRateCalculatorPlugin):
 
 
 def build_model(rate_calculator=None):
-    unit_cell = KMCUnitCell(cell_vectors=np.eye(3), basis_points=[[0.0, 0.0, 0.0]])
-    lattice = KMCLattice(unit_cell=unit_cell, repetitions=(4, 4, 1), periodic=(True, True, False))
-    configuration = KMCConfiguration(lattice=lattice, types=["B"] * 16, possible_types=["A", "B"])
+    unit_cell = KMCUnitCell(
+        cell_vectors=np.eye(3), basis_points=[[0.0, 0.0, 0.0]]
+    )
+    lattice = KMCLattice(
+        unit_cell=unit_cell, repetitions=(4, 4, 1), periodic=(True, True, False)
+    )
+    configuration = KMCConfiguration(
+        lattice=lattice, types=["B"] * 16, possible_types=["A", "B"]
+    )
     coordinates = [[0.0, 0.0, 0.0]]
     processes = [
-        KMCProcess(coordinates, ["A"], ["B"], basis_sites=[0], rate_constant=2.0),
-        KMCProcess(coordinates, ["B"], ["A"], basis_sites=[0], rate_constant=1.0),
+        KMCProcess(
+            coordinates, ["A"], ["B"], basis_sites=[0], rate_constant=2.0
+        ),
+        KMCProcess(
+            coordinates, ["B"], ["A"], basis_sites=[0], rate_constant=1.0
+        ),
     ]
     interactions = KMCInteractions(processes=processes, implicit_wildcards=True)
     if rate_calculator is not None:
         interactions.setRateCalculator(rate_calculator=rate_calculator)
-    return KMCLatticeModel(configuration=configuration, interactions=interactions)
+    return KMCLatticeModel(
+        configuration=configuration, interactions=interactions
+    )
 
 
 def run(model, steps=200, seed=99):
-    model.run(control_parameters=KMCControlParameters(number_of_steps=steps, dump_interval=steps, seed=seed))
+    model.run(
+        control_parameters=KMCControlParameters(
+            number_of_steps=steps, dump_interval=steps, seed=seed
+        )
+    )
     return model._KMCLatticeModel__cpp_timer.simulationTime()
 
 
 def test_python_rate_calculator_is_called_from_cpp():
     model = build_model(rate_calculator=DoubleRateCalculator)
-    model.run(control_parameters=KMCControlParameters(number_of_steps=20, dump_interval=20, seed=7))
+    model.run(
+        control_parameters=KMCControlParameters(
+            number_of_steps=20, dump_interval=20, seed=7
+        )
+    )
 
     calculator = model._backend().interactions().rateCalculator()
     assert isinstance(calculator, DoubleRateCalculator)
@@ -81,7 +109,9 @@ def test_custom_rates_are_used_by_the_backend():
 
 def test_doubling_the_rates_halves_the_simulation_time():
     plain_time = run(build_model(), steps=200, seed=2013)
-    doubled_time = run(build_model(rate_calculator=DoubleRateCalculator), steps=200, seed=2013)
+    doubled_time = run(
+        build_model(rate_calculator=DoubleRateCalculator), steps=200, seed=2013
+    )
 
     ratio = doubled_time / plain_time
     assert abs(ratio - 0.5) < 0.05, ratio

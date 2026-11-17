@@ -57,13 +57,18 @@ from pykmclib import (
 )
 
 unit_cell = KMCUnitCell(
-    cell_vectors=np.array([[5.2, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]), basis_points=[[0.0, 0.0, 0.0]]
+    cell_vectors=np.array([[5.2, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+    basis_points=[[0.0, 0.0, 0.0]],
 )
-lattice = KMCLattice(unit_cell=unit_cell, repetitions=(10, 1, 1), periodic=(True, False, False))
+lattice = KMCLattice(
+    unit_cell=unit_cell, repetitions=(10, 1, 1), periodic=(True, False, False)
+)
 
 types = ["A"] * 10
 types[5] = "B"
-configuration = KMCConfiguration(lattice=lattice, types=types, possible_types=["A", "B"])
+configuration = KMCConfiguration(
+    lattice=lattice, types=types, possible_types=["A", "B"]
+)
 
 left = KMCProcess(
     [[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0]],
@@ -85,7 +90,9 @@ model = KMCLatticeModel(configuration=configuration, interactions=interactions)
 msd = OnTheFlyMSD(history_steps=200, n_bins=100, t_max=2500.0, track_type="B")
 
 model.run(
-    KMCControlParameters(number_of_steps=200_000, dump_interval=50_000, seed=1234),
+    KMCControlParameters(
+        number_of_steps=200_000, dump_interval=50_000, seed=1234
+    ),
     trajectory_filename="traj.xyz",
     trajectory_type="xyz",
     analysis=[msd],
@@ -96,14 +103,29 @@ Concepts such as `sites`, `rates` and `interactions` are the same as in the upst
 (<http://leetmaa.github.io/KMCLib/manual-v1.1/>). To use the upstream manual and examples, just
 change `from KMCLib import ...` to `from pykmclib import ...`.
 
-## Command line
+## Examples
 
-The `pykmclib` command runs a simulation from a [Hydra](https://hydra.cc) configuration. Hydra is
-an optional dependency:
+[`examples/`](examples/README.md) holds six models that run as they are, each with a README
+that compares the result to an exact value or to the literature:
+
+| Example | Model | Shows |
+| --- | --- | --- |
+| [`diffusion_1d`](examples/diffusion_1d/) | random walk on a chain | the basic objects, `OnTheFlyMSD`, trajectories |
+| [`ising`](examples/ising/) | 2D Ising spin model | custom rates in Python (`KMCRateCalculatorPlugin`) and in C++, a custom analysis |
+| [`diffusion_3d`](examples/diffusion_3d/) | vacancy diffusion in an oxide | several sites per cell, mean square displacement by direction |
+| [`langmuir`](examples/langmuir/) | adsorption and desorption | time-weighted averages, a model declared entirely in YAML |
+| [`zgb`](examples/zgb/) | Ziff–Gulari–Barshad CO oxidation | `Composition`, counting events, a breaker (`KMCBreakerPlugin`) |
+| [`ruo2_co_oxidation`](examples/ruo2_co_oxidation/) | CO oxidation at RuO₂(110) from first-principles energies | a literature model with 22 kinds of processes, turnover frequencies |
 
 ```bash
-pip install "pykmclib[cli]"
+python examples/zgb/zgb.py            # prints the phase diagram of the model, about 30 s
+python examples/zgb/zgb.py --plot     # also writes a figure; needs matplotlib (the `examples` extra)
 ```
+
+## Command line
+
+The `pykmclib` command runs a simulation from a [Hydra](https://hydra.cc) configuration. Hydra
+(`hydra-core`) is installed together with pykmclib.
 
 ```bash
 pykmclib model=diffusion1d                         # the packaged example (the model above)
@@ -137,7 +159,7 @@ built-in C++ calculator. `pykmclib --cfg job model=diffusion1d` prints the compo
 without running it.
 
 On Python 3.14 the command needs hydra-core 1.4, which is currently a release candidate; the
-`cli` extra selects it automatically.
+dependencies of pykmclib select it automatically.
 
 ## Changes relative to upstream
 
@@ -148,7 +170,7 @@ While keeping the API compatible, the following has been done so far:
 | Packaging and build | scikit-build-core + CMake 3.21+, C++17; `mpiflag.h` and md5 are generated/extracted in the build directory and no longer written back into the source tree; upstream's `-Werror` and `cmake_force_cxx_compiler` (incompatible with CMake 4) are dropped |
 | Binding layer | SWIG → **pybind11**, working on all three platforms (including Windows); callbacks (custom rates written in Python) are implemented with trampolines |
 | Namespace | `KMCLib` → `pykmclib` (the upstream Python layer uses absolute imports, which a script rewrites mechanically) |
-| Dependencies | The only runtime dependency is `numpy`; pybind11/cmake are needed only at build time; `hydra-core` is optional (the `cli` extra) |
+| Dependencies | The runtime dependencies are `numpy` and `hydra-core` (for the command line); pybind11/cmake are needed only at build time |
 | Command line | New `pykmclib` command driven by Hydra configurations (not part of upstream) |
 | Import side effects | The banner printed at import time is removed; MPI is still initialized/finalized exactly once |
 | Typing | The package ships `py.typed` and a generated stub for the compiled backend (`Backend/_backend.pyi`); the upstream front end itself is not annotated |
@@ -161,11 +183,11 @@ cxx/                   Build adaptation layer: CMake logic + pybind11 bindings (
 third_party/KMCLib/    git subtree snapshot of upstream KMCLib (never edited)
 src/pykmclib/          Python package (renamed upstream front end + Backend facade,
                        cli.py and conf/ for the command line)
+examples/              Runnable models with expected results (see examples/README.md)
 tests/                 Tests for this repository
 scripts/               gen_python_layer.py / gen_stubs.py / run_upstream_tests.py / upstream_info.py
 docs/                  upstream-notes.md (snapshot and syncing), porting-notes.md (binding layer),
                        build-and-release.md (build and release)
-conda/                 Draft conda-forge recipe
 ```
 
 **Why git subtree rather than submodule**: both the PyPI sdist and conda-forge require

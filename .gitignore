@@ -229,3 +229,8 @@ dist/
 *.xyz
 msd.data
 scratch/
+
+# pykmclib: results written by the examples and by the `pykmclib` command
+examples/*/output/
+outputs/
+multirun/

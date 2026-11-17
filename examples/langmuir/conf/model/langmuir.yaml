@@ -1,0 +1,58 @@
+# @package _global_
+#
+# The Langmuir adsorption model of langmuir.py, declared entirely in YAML: it
+# needs nothing but pykmclib and runs from any directory.
+#
+#   pykmclib --config-dir examples/langmuir/conf model=langmuir
+#   pykmclib -m --config-dir examples/langmuir/conf model=langmuir adsorption_rate=0.1,1.0,10.0
+#
+# In equilibrium the coverage is K / (1 + K) with K = adsorption_rate / desorption_rate.
+adsorption_rate: 1.0
+desorption_rate: 1.0
+
+model:
+  configuration:
+    _target_: pykmclib.KMCConfiguration
+    lattice:
+      _target_: pykmclib.KMCLattice
+      unit_cell:
+        _target_: pykmclib.KMCUnitCell
+        cell_vectors: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        basis_points: [[0.0, 0.0, 0.0]]
+      repetitions: [20, 20, 1]
+      periodic: [true, true, false]
+    types:                      # all 400 sites start empty
+      _target_: pykmclib.cli.site_types
+      default: E
+      count: 400
+    possible_types: [E, A]
+
+  interactions:
+    _target_: pykmclib.KMCInteractions
+    implicit_wildcards: true
+    processes:
+      - _target_: pykmclib.KMCProcess    # adsorption on an empty site
+        coordinates: [[0.0, 0.0, 0.0]]
+        elements_before: [E]
+        elements_after: [A]
+        basis_sites: [0]
+        rate_constant: ${adsorption_rate}
+      - _target_: pykmclib.KMCProcess    # desorption
+        coordinates: [[0.0, 0.0, 0.0]]
+        elements_before: [A]
+        elements_after: [E]
+        basis_sites: [0]
+        rate_constant: ${desorption_rate}
+
+  rate_calculator: null
+
+control:
+  number_of_steps: 100000
+  dump_interval: 10000
+  seed: 2014
+
+# The number of particles of each type, averaged over blocks of 5 time units;
+# written to analysis_0_Composition.txt.
+analysis:
+  - _target_: pykmclib.Composition
+    time_interval: 5.0

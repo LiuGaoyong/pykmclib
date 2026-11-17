@@ -1,0 +1,37 @@
+# @package _global_
+#
+# The RuO2(110) model of ruo2_co_oxidation.py for the `pykmclib` command.  Run
+# it from the directory of ruo2_co_oxidation.py, so that the functions and
+# classes of that file can be imported:
+#
+#   cd examples/ruo2_co_oxidation
+#   python -m pykmclib.cli --config-dir conf model=ruo2_co_oxidation
+#   python -m pykmclib.cli -m --config-dir conf model=ruo2_co_oxidation model.interactions.p_co=2,7,15
+model:
+  configuration:
+    _target_: ruo2_co_oxidation.build_configuration
+    cells_across: 10
+    cells_along: 10
+    bridge: O               # the bridge sites start covered by oxygen,
+    cus: E                  # the cus sites empty
+  interactions:
+    _target_: ruo2_co_oxidation.build_interactions
+    temperature: 600.0      # K
+    p_co: 7.0               # atm
+    p_o2: 1.0               # atm
+  rate_calculator: null
+
+control:
+  number_of_steps: 500000
+  dump_interval: 50000
+  seed: 2006
+
+# Both analyses leave out the first half of the run, in which the surface
+# adapts to the gas.  They are written to analysis_0_TurnoverFrequency.txt and
+# analysis_1_SiteOccupation.txt.
+analysis:
+  - _target_: ruo2_co_oxidation.TurnoverFrequency
+    skip_steps: 250000
+  - _target_: ruo2_co_oxidation.SiteOccupation
+    sampling_interval: 100
+    skip_steps: 250000

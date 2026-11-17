@@ -1,0 +1,32 @@
+# @package _global_
+#
+# The Ising model of ising.py for the `pykmclib` command.  Run it from the
+# directory of ising.py, so that the functions and classes of that file can be
+# imported:
+#
+#   cd examples/ising
+#   python -m pykmclib.cli --config-dir conf model=ising
+#   python -m pykmclib.cli --config-dir conf model=ising model.rate_calculator=IsingTestCalculator
+model:
+  configuration:
+    _target_: ising.build_configuration
+    size: 40
+    seed: 1
+  interactions:
+    _target_: ising.build_interactions
+
+  # A dotted path to a KMCRateCalculatorPlugin class (here the Python class of
+  # ising.py), or the name of a calculator built into the backend
+  # (IsingTestCalculator, the same model in C++).
+  rate_calculator: ising.IsingRateCalculator
+
+control:
+  number_of_steps: 1000000
+  dump_interval: 100000
+  analysis_interval: 5000
+  seed: 2014
+
+# The magnetisation and the fraction of aligned neighbour pairs, every
+# `analysis_interval` steps; written to analysis_0_SpinOrder.txt.
+analysis:
+  - _target_: ising.SpinOrder

@@ -1,16 +1,13 @@
-"""The ``pykmclib`` command (Hydra based, optional dependency)."""
+"""The ``pykmclib`` command (Hydra based)."""
 
 from __future__ import annotations
 
-import importlib.util
 import subprocess
 import sys
 
 import pytest
 
 from pykmclib.cli import _hydra_problem, site_types
-
-needs_hydra = pytest.mark.skipif(importlib.util.find_spec("hydra") is None, reason="hydra-core is not installed")
 
 ENTRY_POINT = "import sys; from pykmclib.cli import main; sys.exit(main())"
 
@@ -58,9 +55,13 @@ def test_site_types_fills_and_overrides():
 
 
 def test_missing_hydra_is_reported(tmp_path):
-    result = pykmclib("model=diffusion1d", cwd=tmp_path, prelude="import sys; sys.modules['hydra'] = None; ")
+    result = pykmclib(
+        "model=diffusion1d",
+        cwd=tmp_path,
+        prelude="import sys; sys.modules['hydra'] = None; ",
+    )
     assert result.returncode == 1
-    assert "pykmclib[cli]" in result.stderr
+    assert "pip install hydra-core" in result.stderr
 
 
 def test_old_hydra_is_rejected_on_python_3_14():
@@ -70,10 +71,13 @@ def test_old_hydra_is_rejected_on_python_3_14():
     assert _hydra_problem("2.0", (3, 15, 0)) is None
 
 
-@needs_hydra
 def test_packaged_example_runs(tmp_path):
     result = pykmclib(
-        "model=diffusion1d", "control.number_of_steps=200", "control.dump_interval=100", "control.seed=3", cwd=tmp_path
+        "model=diffusion1d",
+        "control.number_of_steps=200",
+        "control.dump_interval=100",
+        "control.seed=3",
+        cwd=tmp_path,
     )
     assert result.returncode == 0, result.stderr
 
@@ -82,7 +86,6 @@ def test_packaged_example_runs(tmp_path):
     assert "MSD_x" in (output / "analysis_0_OnTheFlyMSD.txt").read_text()
 
 
-@needs_hydra
 def test_model_from_scripts(tmp_path):
     (tmp_path / "config.py").write_text(CONFIGURATION_SCRIPT)
     (tmp_path / "processes.py").write_text(INTERACTIONS_SCRIPT)
@@ -103,7 +106,6 @@ def test_model_from_scripts(tmp_path):
     assert (output / "traj.py").read_text().strip()
 
 
-@needs_hydra
 def test_multirun_creates_one_directory_per_value(tmp_path):
     result = pykmclib(
         "--multirun",
@@ -117,7 +119,6 @@ def test_multirun_creates_one_directory_per_value(tmp_path):
     assert len(run_directories(tmp_path)) == 2
 
 
-@needs_hydra
 def test_a_model_is_required(tmp_path):
     result = pykmclib(cwd=tmp_path)
     assert result.returncode != 0

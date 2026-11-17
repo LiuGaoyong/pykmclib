@@ -36,7 +36,14 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Chemistry",
   "Topic :: Scientific/Engineering :: Physics",
 ]
-dependencies = ["numpy>=1.21"]
+dependencies = [
+  "numpy>=1.21",
+  # The `pykmclib` command line interface.  hydra-core 1.3 does not work on
+  # Python 3.14 (its argument parser fails), so 1.4 is required there; the
+  # pre-release bound lets installers pick 1.4.0rc3 until 1.4.0 is out.
+  "hydra-core>=1.3; python_version < '3.14'",
+  "hydra-core>=1.4.0rc3; python_version >= '3.14'",
+]
 dynamic = ["version"]
 
 [project.urls]
@@ -48,20 +55,13 @@ Homepage = "https://github.com/LiuGaoyong/pykmclib"
 pykmclib = "pykmclib.cli:main"
 
 [project.optional-dependencies]
-# The `pykmclib` command line interface.  hydra-core 1.3 does not work on
-# Python 3.14 (its argument parser fails), so 1.4 is required there; the
-# pre-release bound lets installers pick 1.4.0rc3 until 1.4.0 is out.
-cli = [
-  "hydra-core>=1.3; python_version < '3.14'",
-  "hydra-core>=1.4.0rc3; python_version >= '3.14'",
-]
 test = ["pytest>=8", "pytest-cov"]
 docs = ["sphinx>=7", "sphinx-rtd-theme"]
+# Only for the figures of the scripts in examples/ (their `--plot` option).
+examples = ["matplotlib>=3.7"]
 
 [dependency-groups]
 dev = [
-  "hydra-core>=1.3; python_version < '3.14'",
-  "hydra-core>=1.4.0rc3; python_version >= '3.14'",
   # Keep in step with CIBUILDWHEEL_VERSION in .github/workflows/wheels.yml.
   "cibuildwheel>=4.3; python_version >= '3.11'",
   "pybind11-stubgen>=3.0",
@@ -121,7 +121,7 @@ addopts = "-ra"
 filterwarnings = ["error::DeprecationWarning:pykmclib.*"]
 
 [tool.ruff]
-line-length = 120
+line-length = 80
 target-version = "py310"
 extend-exclude = [
   "third_party",
@@ -151,7 +151,7 @@ build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
 # image are chosen per job in .github/workflows/wheels.yml.
 skip = "*-musllinux_*"
 test-command = "pytest {project}/tests -q"
-test-extras = ["test", "cli"]
+test-extras = ["test"]
 
 [tool.cibuildwheel.linux]
 # PIP_ONLY_BINARY: never compile numpy from source inside the build image; when

@@ -34,15 +34,32 @@ def generate() -> str:
     """Run pybind11-stubgen on the installed extension and return the stub text."""
     with tempfile.TemporaryDirectory(prefix="pykmclib-stubs-") as scratch:
         subprocess.run(
-            [sys.executable, "-m", "pybind11_stubgen", MODULE, "--output-dir", scratch, "--exit-code"],
+            [
+                sys.executable,
+                "-m",
+                "pybind11_stubgen",
+                MODULE,
+                "--output-dir",
+                scratch,
+                "--exit-code",
+            ],
             check=True,
         )
-        return Path(scratch, *MODULE.split(".")).with_suffix(".pyi").read_text(encoding="utf-8")
+        return (
+            Path(scratch, *MODULE.split("."))
+            .with_suffix(".pyi")
+            .read_text(encoding="utf-8")
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--check", action="store_true", help="report drift instead of writing")
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="report drift instead of writing"
+    )
     args = parser.parse_args(argv)
 
     content = generate()
@@ -53,10 +70,17 @@ def main(argv: list[str] | None = None) -> int:
             print("backend stub is up to date")
             return 0
         diff = difflib.unified_diff(
-            current.splitlines(), content.splitlines(), "committed", "generated", lineterm="", n=1
+            current.splitlines(),
+            content.splitlines(),
+            "committed",
+            "generated",
+            lineterm="",
+            n=1,
         )
         print("\n".join(diff))
-        print(f"\n{STUB.relative_to(REPO_ROOT)} is stale (run scripts/gen_stubs.py)")
+        print(
+            f"\n{STUB.relative_to(REPO_ROOT)} is stale (run scripts/gen_stubs.py)"
+        )
         return 1
 
     if current == content:

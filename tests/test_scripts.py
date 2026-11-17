@@ -30,9 +30,15 @@ def test_python_layer_matches_the_vendored_snapshot(gen_python_layer):
     assert gen_python_layer.main(["--check"]) == 0
 
 
-def test_check_reports_files_without_upstream_counterpart(gen_python_layer, tmp_path, monkeypatch, capsys):
+def test_check_reports_files_without_upstream_counterpart(
+    gen_python_layer, tmp_path, monkeypatch, capsys
+):
     package = tmp_path / "pykmclib"
-    shutil.copytree(gen_python_layer.DEST_DIR, package, ignore=shutil.ignore_patterns("__pycache__", "*.so", "*.pyd"))
+    shutil.copytree(
+        gen_python_layer.DEST_DIR,
+        package,
+        ignore=shutil.ignore_patterns("__pycache__", "*.so", "*.pyd"),
+    )
     (package / "Utilities" / "Stray.py").write_text("# not part of upstream\n")
     monkeypatch.setattr(gen_python_layer, "DEST_DIR", package)
 

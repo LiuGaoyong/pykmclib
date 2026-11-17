@@ -10,7 +10,9 @@ import pytest
 def test_version_is_pep440():
     import pykmclib
 
-    assert re.fullmatch(r"\d+\.\d+\.\d+([abc]\d+|\.dev\d+|\.post\d+)?", pykmclib.__version__)
+    assert re.fullmatch(
+        r"\d+\.\d+\.\d+([abc]\d+|\.dev\d+|\.post\d+)?", pykmclib.__version__
+    )
 
 
 def test_version_matches_the_installed_metadata():

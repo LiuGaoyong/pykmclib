@@ -1,0 +1,36 @@
+# @package _global_
+#
+# The vacancy diffusion model of diffusion_3d.py for the `pykmclib` command.
+# Run it from the directory of diffusion_3d.py, so that the functions of that
+# file can be imported:
+#
+#   cd examples/diffusion_3d
+#   python -m pykmclib.cli --config-dir conf model=diffusion_3d
+#   python -m pykmclib.cli -m --config-dir conf model=diffusion_3d model.interactions.rate_constant_down=1.0,1.1,1.3
+model:
+  configuration:
+    _target_: diffusion_3d.build_configuration
+    size: 12
+    vacancy_fraction: 0.4
+    dopant_fraction: 0.4
+    seed: 1
+  interactions:
+    _target_: diffusion_3d.build_interactions
+    rate_constant: 1.0
+    rate_constant_up: 0.9
+    rate_constant_down: 1.1
+  rate_calculator: null
+
+control:
+  number_of_steps: 500000
+  dump_interval: 50000
+  analysis_interval: 1
+  seed: 2014
+
+# The mean square displacement of the vacancies; written to analysis_0_OnTheFlyMSD.txt.
+analysis:
+  - _target_: pykmclib.OnTheFlyMSD
+    history_steps: 200
+    n_bins: 100
+    t_max: 100.0
+    track_type: V

@@ -73,11 +73,10 @@ uv run python scripts/gen_python_layer.py --check # for CI: passes if there is n
 ## 3. Version number
 
 The single source of truth is `__version__` in `src/pykmclib/__init__.py`. `pyproject.toml` reads it
-through scikit-build-core's `metadata.regex` provider, and `conda/recipe/meta.yaml` is synced by
-hand. Release example (`0.0.1 → 0.0.2`):
+through scikit-build-core's `metadata.regex` provider. Release example (`0.0.1 → 0.0.2`):
 
 ```bash
-# 1) Set __version__ = "0.0.2" and sync the version in conda/recipe/meta.yaml
+# 1) Set __version__ = "0.0.2"
 #    (the publish job refuses to upload if the tag and __version__ disagree)
 # 2) Refresh the lock file (recommended)
 uv lock
@@ -127,12 +126,16 @@ uv pip install --python /tmp/pypi-check/bin/python pykmclib
 
 Prerequisite: the sdist for that version is already on PyPI (conda-forge builds from the sdist).
 
-1. Take the sdist's sha256 and fill it into `conda/recipe/meta.yaml`
-   (`conda/README.md` has a one-liner you can copy).
-2. Copy `conda/recipe/` to `recipes/pykmclib/` in `conda-forge/staged-recipes` and open a PR.
-   The recipe's build dependencies are the compilers + `cmake` + `ninja`; the host section has
-   `python`/`pip`/`scikit-build-core`/`pybind11`/`numpy`.
-3. After the merge, `pykmclib-feedstock` is generated automatically, and the autotick bot opens PRs
+This repository does not carry a recipe; it is written in the pull request against
+`conda-forge/staged-recipes`.
+
+1. Add `recipes/pykmclib/meta.yaml` in a fork of `conda-forge/staged-recipes`, with the PyPI sdist
+   and its sha256 as the source, and open a PR. The build script is
+   `{{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation`. The recipe's build
+   dependencies are the compilers + `cmake >=3.21` + `ninja`; the host section has
+   `python`/`pip`/`scikit-build-core`/`pybind11`/`numpy`; the run section has `python`, `numpy` and
+   `hydra-core`. Both `LICENSE` and `third_party/KMCLib/LICENSE.txt` go into `license_file`.
+2. After the merge, `pykmclib-feedstock` is generated automatically, and the autotick bot opens PRs
    for later versions.
 
 ---
@@ -148,5 +151,5 @@ Prerequisite: the sdist for that version is already on PyPI (conda-forge builds 
 | Python 3.14 | Listed in the classifiers and in the cibuildwheel matrix |
 | Upstream cppunit unit tests | Not wired in (`third_party/KMCLib/c++/unittest` is kept but not compiled) |
 | `KMCConfiguration._script()` | Upstream raises `TypeError` for configurations with multiple particles per site (left over from 2.0-alpha); not fixed |
-| Command line on Python 3.14 | hydra-core 1.3 fails there, so the `cli` extra requires hydra-core ≥ 1.4.0rc3 (a release candidate) on 3.14; older Pythons use the stable 1.3 |
+| Command line on Python 3.14 | hydra-core 1.3 fails there, so pykmclib requires hydra-core ≥ 1.4.0rc3 (a release candidate) on 3.14; older Pythons use the stable 1.3 |
 | Default trajectory format | `KMCLatticeModel.run()` defaults to the lattice script format; for XYZ you must pass `trajectory_type="xyz"` explicitly |

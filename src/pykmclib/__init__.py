@@ -44,7 +44,10 @@ from .CoreComponents.KMCUnitCell import KMCUnitCell
 from .PluginInterfaces.KMCAnalysisPlugin import KMCAnalysisPlugin
 from .PluginInterfaces.KMCBreakerPlugin import KMCBreakerPlugin
 from .PluginInterfaces.KMCRateCalculatorPlugin import KMCRateCalculatorPlugin
-from .Utilities.SaveAndReadUtilities import KMCConfigurationFromScript, KMCInteractionsFromScript
+from .Utilities.SaveAndReadUtilities import (
+    KMCConfigurationFromScript,
+    KMCInteractionsFromScript,
+)
 
 __all__ = [
     "KMCLocalConfiguration",

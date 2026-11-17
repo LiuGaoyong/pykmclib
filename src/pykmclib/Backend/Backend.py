@@ -49,7 +49,9 @@ class _StdVector(list):
                 raise TypeError("the first argument must be an integer size")
             super().__init__(self._repeated(int(count), value))
         else:
-            raise TypeError(f"{type(self).__name__}() takes at most 2 arguments")
+            raise TypeError(
+                f"{type(self).__name__}() takes at most 2 arguments"
+            )
 
     def _init_from_one(self, value):
         if isinstance(value, numbers.Integral):
@@ -210,7 +212,9 @@ class OnTheFlyMSD(_ExtOnTheFlyMSD):
         return StdVectorInt(_ExtOnTheFlyMSD.histogramBinCounts(self))
 
     def historyStepsHistogramBinCounts(self):
-        return StdVectorStdVectorInt(_ExtOnTheFlyMSD.historyStepsHistogramBinCounts(self))
+        return StdVectorStdVectorInt(
+            _ExtOnTheFlyMSD.historyStepsHistogramBinCounts(self)
+        )
 
     def hstepCounts(self):
         return StdVectorInt(_ExtOnTheFlyMSD.hstepCounts(self))
