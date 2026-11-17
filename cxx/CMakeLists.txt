@@ -15,6 +15,22 @@ set(KMC_ROOT "${PROJECT_SOURCE_DIR}/third_party/KMCLib/c++")
 set(KMC_GEN_DIR "${CMAKE_CURRENT_BINARY_DIR}/gen")
 
 # ---------------------------------------------------------------------------
+# Settings shared by every target: the C++ standard and the MSVC switches.
+# ---------------------------------------------------------------------------
+function(kmc_configure_target target)
+  set_target_properties(${target} PROPERTIES
+    CXX_STANDARD "${KMC_CXX_STANDARD}"
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+  )
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /W3 /EHsc /bigobj)
+    target_compile_definitions(${target} PRIVATE
+      _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES NOMINMAX)
+  endif()
+endfunction()
+
+# ---------------------------------------------------------------------------
 # Generated mpiflag.h (upstream generates this into its source tree instead)
 # ---------------------------------------------------------------------------
 if(KMC_ENABLE_MPI)
@@ -58,21 +74,15 @@ target_include_directories(kmc_core
     "${MD5_DIR}"
 )
 
+kmc_configure_target(kmc_core)
 set_target_properties(kmc_core PROPERTIES
-  CXX_STANDARD "${KMC_CXX_STANDARD}"
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
   POSITION_INDEPENDENT_CODE ON          # static lib ends up inside a module
   ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib"
 )
 
 # The 2016-era sources trip plenty of modern diagnostics; keep them visible but
 # non-fatal, and silence the two known-noisy classes.
-if(MSVC)
-  target_compile_options(kmc_core PRIVATE /W3 /EHsc /bigobj)
-  target_compile_definitions(kmc_core PRIVATE
-    _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES NOMINMAX)
-else()
+if(NOT MSVC)
   target_compile_options(kmc_core PRIVATE
     -Wall -Wextra
     -Wno-unused-parameter
@@ -93,18 +103,11 @@ list(SORT KMC_CUSTOM_SOURCES)
 
 add_library(kmc_custom STATIC ${KMC_CUSTOM_SOURCES})
 target_include_directories(kmc_custom PUBLIC "${KMC_ROOT}/src" "${KMC_ROOT}/custom" PRIVATE "${KMC_GEN_DIR}")
+kmc_configure_target(kmc_custom)
 set_target_properties(kmc_custom PROPERTIES
-  CXX_STANDARD "${KMC_CXX_STANDARD}"
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
   POSITION_INDEPENDENT_CODE ON
   ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/lib"
 )
-if(MSVC)
-  target_compile_options(kmc_custom PRIVATE /W3 /EHsc /bigobj)
-  target_compile_definitions(kmc_custom PRIVATE
-    _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES NOMINMAX)
-endif()
 
 # ---------------------------------------------------------------------------
 # pybind11 extension module
@@ -137,15 +140,9 @@ target_include_directories(_backend PRIVATE
   "${KMC_GEN_DIR}"
   "${MD5_DIR}"
 )
-set_target_properties(_backend PROPERTIES
-  CXX_STANDARD "${KMC_CXX_STANDARD}"
-  CXX_STANDARD_REQUIRED ON
-  CXX_EXTENSIONS OFF
-)
+kmc_configure_target(_backend)
 if(MSVC)
-  target_compile_options(_backend PRIVATE /W3 /EHsc /bigobj /utf-8)
-  target_compile_definitions(_backend PRIVATE
-    _CRT_SECURE_NO_WARNINGS _USE_MATH_DEFINES NOMINMAX)
+  target_compile_options(_backend PRIVATE /utf-8)
 endif()
 
 # ---------------------------------------------------------------------------
