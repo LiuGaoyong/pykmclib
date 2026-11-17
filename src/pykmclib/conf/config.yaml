@@ -1,0 +1,30 @@
+# Top level configuration of the `pykmclib` command.
+#
+# Pick a model with `model=<name>`; a model file may also change the run
+# settings below, and everything can be overridden on the command line.
+defaults:
+  - _self_
+  - model: ???
+
+# Passed to pykmclib.KMCControlParameters. `null` keeps the library default.
+control:
+  _target_: pykmclib.KMCControlParameters
+  number_of_steps: 1000
+  dump_interval: 100
+  analysis_interval: null
+  seed: null
+  dump_time_interval: null
+  rng_type: null
+
+# The trajectory is written into the output directory of the run.
+trajectory:
+  filename: null      # null: do not write a trajectory
+  type: lattice       # lattice | xyz
+
+# Analysis and breaker plugins: a list of objects, each with a `_target_`.
+analysis: []
+breakers: []
+
+hydra:
+  job:
+    name: pykmclib

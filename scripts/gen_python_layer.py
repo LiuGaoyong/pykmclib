@@ -9,11 +9,13 @@ rewriting the absolute imports::
     from KMCLib.Backend import Backend   ->  from pykmclib.Backend import Backend
 
 Everything else is byte-identical to upstream, so a refresh is a mechanical,
-reviewable diff.  Three files are maintained by hand and are never touched:
+reviewable diff.  These files are maintained by hand and are never touched:
 
     __init__.py
     Backend/Backend.py
     Backend/Custom.py
+    cli.py
+    conf/__init__.py
 
 Any other ``.py`` file in ``src/pykmclib`` that has no upstream counterpart
 (for example a module upstream deleted) is reported, and fails ``--check``.
@@ -41,6 +43,8 @@ OURS = {
     Path("__init__.py"),
     Path("Backend/Backend.py"),
     Path("Backend/Custom.py"),
+    Path("cli.py"),
+    Path("conf/__init__.py"),
 }
 
 IMPORT_RE = re.compile(r"^(?P<indent>\s*)(?P<kw>from|import)\s+KMCLib\b", re.MULTILINE)

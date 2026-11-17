@@ -145,4 +145,5 @@ Prerequisite: the sdist for that version is already on PyPI (conda-forge builds 
 | Python 3.14 | Listed in the classifiers and in the cibuildwheel matrix |
 | Upstream cppunit unit tests | Not wired in (`third_party/KMCLib/c++/unittest` is kept but not compiled) |
 | `KMCConfiguration._script()` | Upstream raises `TypeError` for configurations with multiple particles per site (left over from 2.0-alpha); not fixed |
+| Command line on Python 3.14 | hydra-core 1.3 fails there, so the `cli` extra requires hydra-core ≥ 1.4.0rc3 (a release candidate) on 3.14; older Pythons use the stable 1.3 |
 | Default trajectory format | `KMCLatticeModel.run()` defaults to the lattice script format; for XYZ you must pass `trajectory_type="xyz"` explicitly |

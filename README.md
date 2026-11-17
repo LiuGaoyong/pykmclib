@@ -96,6 +96,49 @@ Concepts such as `sites`, `rates` and `interactions` are the same as in the upst
 (<http://leetmaa.github.io/KMCLib/manual-v1.1/>). To use the upstream manual and examples, just
 change `from KMCLib import ...` to `from pykmclib import ...`.
 
+## Command line
+
+The `pykmclib` command runs a simulation from a [Hydra](https://hydra.cc) configuration. Hydra is
+an optional dependency:
+
+```bash
+pip install "pykmclib[cli]"
+```
+
+```bash
+pykmclib model=diffusion1d                         # the packaged example (the model above)
+pykmclib model=diffusion1d control.seed=7 control.number_of_steps=100000
+pykmclib -m model=diffusion1d control.seed=1,2,3   # one run per seed
+```
+
+Each run gets its own output directory (`outputs/<date>/<time>`, or `multirun/...` with `-m`)
+holding the trajectory, one `analysis_<n>_<Plugin>.txt` per analysis plugin, the log, and the
+fully resolved configuration under `.hydra/`.
+
+A model can be defined in two ways:
+
+- **In YAML.** Every object is described by its constructor (`_target_`) and its arguments; see
+  [`src/pykmclib/conf/model/diffusion1d.yaml`](src/pykmclib/conf/model/diffusion1d.yaml). Put
+  your own files in `<dir>/model/<name>.yaml` and run
+  `pykmclib --config-dir <dir> model=<name>`. `pykmclib.cli.site_types` builds a long `types`
+  list from a default type and a few overrides.
+- **From Python scripts** in the upstream KMCLib style, which suits large lattices:
+
+  ```bash
+  pykmclib model=script configuration_script=config.py interactions_script=processes.py
+  ```
+
+  The first `KMCConfiguration` / `KMCInteractions` object found in each script is used.
+
+The run settings live under `control` (the arguments of `KMCControlParameters`), `trajectory`
+(`filename`, `type`), `analysis` and `breakers` (lists of plugins, each with a `_target_`);
+`model.rate_calculator` takes a dotted path to a `KMCRateCalculatorPlugin` class or the name of a
+built-in C++ calculator. `pykmclib --cfg job model=diffusion1d` prints the composed configuration
+without running it.
+
+On Python 3.14 the command needs hydra-core 1.4, which is currently a release candidate; the
+`cli` extra selects it automatically.
+
 ## Changes relative to upstream
 
 While keeping the API compatible, the following has been done so far:
@@ -105,7 +148,8 @@ While keeping the API compatible, the following has been done so far:
 | Packaging and build | scikit-build-core + CMake 3.21+, C++17; `mpiflag.h` and md5 are generated/extracted in the build directory and no longer written back into the source tree; upstream's `-Werror` and `cmake_force_cxx_compiler` (incompatible with CMake 4) are dropped |
 | Binding layer | SWIG → **pybind11**, working on all three platforms (including Windows); callbacks (custom rates written in Python) are implemented with trampolines |
 | Namespace | `KMCLib` → `pykmclib` (the upstream Python layer uses absolute imports, which a script rewrites mechanically) |
-| Dependencies | The only runtime dependency is `numpy`; pybind11/cmake are needed only at build time |
+| Dependencies | The only runtime dependency is `numpy`; pybind11/cmake are needed only at build time; `hydra-core` is optional (the `cli` extra) |
+| Command line | New `pykmclib` command driven by Hydra configurations (not part of upstream) |
 | Import side effects | The banner printed at import time is removed; MPI is still initialized/finalized exactly once |
 | Typing | The package ships `py.typed` and a generated stub for the compiled backend (`Backend/_backend.pyi`); the upstream front end itself is not annotated |
 
@@ -115,7 +159,8 @@ While keeping the API compatible, the following has been done so far:
 CMakeLists.txt         PEP 517 entry point
 cxx/                   Build adaptation layer: CMake logic + pybind11 bindings (bindings/)
 third_party/KMCLib/    git subtree snapshot of upstream KMCLib (never edited)
-src/pykmclib/          Python package (renamed upstream front end + Backend facade)
+src/pykmclib/          Python package (renamed upstream front end + Backend facade,
+                       cli.py and conf/ for the command line)
 tests/                 Tests for this repository
 scripts/               gen_python_layer.py / gen_stubs.py / run_upstream_tests.py / upstream_info.py
 docs/                  upstream-notes.md (snapshot and syncing), porting-notes.md (binding layer),

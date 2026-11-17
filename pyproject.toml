@@ -44,12 +44,24 @@ Homepage = "https://github.com/LiuGaoyong/pykmclib"
 "Upstream KMCLib" = "https://github.com/leetmaa/KMCLib"
 "Bug Tracker" = "https://github.com/LiuGaoyong/pykmclib/issues"
 
+[project.scripts]
+pykmclib = "pykmclib.cli:main"
+
 [project.optional-dependencies]
+# The `pykmclib` command line interface.  hydra-core 1.3 does not work on
+# Python 3.14 (its argument parser fails), so 1.4 is required there; the
+# pre-release bound lets installers pick 1.4.0rc3 until 1.4.0 is out.
+cli = [
+  "hydra-core>=1.3; python_version < '3.14'",
+  "hydra-core>=1.4.0rc3; python_version >= '3.14'",
+]
 test = ["pytest>=8", "pytest-cov"]
 docs = ["sphinx>=7", "sphinx-rtd-theme"]
 
 [dependency-groups]
 dev = [
+  "hydra-core>=1.3; python_version < '3.14'",
+  "hydra-core>=1.4.0rc3; python_version >= '3.14'",
   # Keep in step with CIBUILDWHEEL_VERSION in .github/workflows/wheels.yml.
   "cibuildwheel>=4.3; python_version >= '3.11'",
   "pybind11-stubgen>=3.0",
@@ -99,6 +111,7 @@ cache-keys = [
   { file = "third_party/KMCLib/c++/src/**/*.{c,h,cpp,hpp}" },
   { file = "third_party/KMCLib/c++/custom/**/*.{c,h,cpp,hpp}" },
   { file = "src/**/*.py" },
+  { file = "src/**/*.yaml" },
 ]
 
 [tool.pytest.ini_options]

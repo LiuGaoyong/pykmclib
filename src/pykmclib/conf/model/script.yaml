@@ -1,0 +1,20 @@
+# @package _global_
+#
+# A model defined by KMCLib style Python scripts:
+#
+#   pykmclib model=script configuration_script=config.py interactions_script=processes.py
+#
+# The scripts build the objects with `from pykmclib import *`; the first
+# KMCConfiguration / KMCInteractions found in each script is used. Relative
+# paths are resolved against the directory the command is started from.
+configuration_script: ???
+interactions_script: ???
+
+model:
+  configuration:
+    _target_: pykmclib.KMCConfigurationFromScript
+    script_file_path: ${configuration_script}
+  interactions:
+    _target_: pykmclib.KMCInteractionsFromScript
+    script_file_path: ${interactions_script}
+  rate_calculator: null

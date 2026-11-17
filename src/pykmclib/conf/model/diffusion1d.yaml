@@ -1,0 +1,57 @@
+# @package _global_
+#
+# 1D diffusion: a periodic chain of 10 sites on which a single B atom performs
+# a random walk in a sea of A atoms. The whole model is declared in YAML.
+model:
+  configuration:
+    _target_: pykmclib.KMCConfiguration
+    lattice:
+      _target_: pykmclib.KMCLattice
+      unit_cell:
+        _target_: pykmclib.KMCUnitCell
+        cell_vectors: [[5.2, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        basis_points: [[0.0, 0.0, 0.0]]
+      repetitions: [10, 1, 1]
+      periodic: [true, false, false]
+    types:
+      _target_: pykmclib.cli.site_types
+      default: A
+      count: 10
+      overrides: {5: B}
+    possible_types: [A, B]
+
+  interactions:
+    _target_: pykmclib.KMCInteractions
+    implicit_wildcards: true
+    processes:
+      - _target_: pykmclib.KMCProcess    # hop to the left
+        coordinates: [[0.0, 0.0, 0.0], [-1.0, 0.0, 0.0]]
+        elements_before: [B, A]
+        elements_after: [A, B]
+        basis_sites: [0]
+        rate_constant: 1.5
+      - _target_: pykmclib.KMCProcess    # hop to the right
+        coordinates: [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]
+        elements_before: [B, A]
+        elements_after: [A, B]
+        basis_sites: [0]
+        rate_constant: 1.5
+
+  # A dotted path to a KMCRateCalculatorPlugin class, or the name of a
+  # built-in C++ calculator. null: use the rate constants as they are.
+  rate_calculator: null
+
+control:
+  number_of_steps: 20000
+  dump_interval: 5000
+
+trajectory:
+  filename: traj.xyz
+  type: xyz
+
+analysis:
+  - _target_: pykmclib.OnTheFlyMSD
+    history_steps: 200
+    n_bins: 100
+    t_max: 2500.0
+    track_type: B
